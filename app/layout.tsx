@@ -11,6 +11,9 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+import { StoreProvider } from "@/lib/store"
+import { AuthProvider } from "@/lib/auth-context"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -23,7 +26,13 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", roboto.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <StoreProvider>
+              {children}
+            </StoreProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )
