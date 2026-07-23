@@ -155,7 +155,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const dbMessages = res.data.messages.map((dbMessage: any) => ({
         ...dbMessage,
         role: dbMessage.role.toLowerCase() as 'user' | 'assistant',
-        createdAt: new Date(dbMessage.createdAt)
+        createdAt: new Date(dbMessage.createdAt),
+        citations: dbMessage.citations?.map((c: any) => ({
+          ...c,
+          sourceName: c.source?.name || c.sourceName || "Unknown Source",
+          sourceType: c.source?.type?.toLowerCase() || c.sourceType || "text",
+        }))
       }));
       
       setMessages(prev => {

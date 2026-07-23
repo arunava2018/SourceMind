@@ -28,6 +28,13 @@ export async function GET(
     const notebookMessages = await db.query.messages.findMany({
       where: eq(messages.notebookId, notebookId),
       orderBy: (messages, { asc }) => [asc(messages.createdAt)],
+      with: {
+        citations: {
+          with: {
+            source: true,
+          }
+        }
+      }
     });
 
     return Response.json({ success: true, messages: notebookMessages });
