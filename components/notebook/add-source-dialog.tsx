@@ -32,6 +32,8 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
   const [textContent, setTextContent] = useState("")
   const [textName, setTextName] = useState("")
   const [activeTab, setActiveTab] = useState<string>("pdf")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleAddPdf = () => {
     // Mocking file upload
@@ -59,11 +61,20 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
     resetAndClose()
   }
 
-  const handleAddText = (e: React.FormEvent) => {
+  const handleAddText = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!textContent) return
-    addSource(notebookId, textName || "Pasted Text", "text")
-    resetAndClose()
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      await addSource(notebookId, textName || "Pasted Text", "text", { content: textContent })
+      resetAndClose()
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || "Failed to add source. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const resetAndClose = () => {
@@ -72,6 +83,8 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
     setYoutubeUrl("")
     setTextContent("")
     setTextName("")
+    setIsSubmitting(false)
+    setError(null)
   }
 
   return (
@@ -179,12 +192,19 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
                   <Textarea 
                     id="text-content" 
                     placeholder="Paste your text here..." 
-                    className="min-h-[150px]"
+                    className="min-h-[150px] max-h-[300px] overflow-y-auto"
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                   />
                 </div>
-                <Button type="submit" disabled={!textContent}>Add Text Source</Button>
+                {error && (
+                  <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive font-medium">
+                    {error}
+                  </div>
+                )}
+                <Button type="submit" className="w-full" disabled={!textContent || isSubmitting}>
+                  {isSubmitting ? "Adding Source..." : "Add Text Source"}
+                </Button>
               </form>
             </TabsContent>
 

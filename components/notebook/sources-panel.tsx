@@ -93,7 +93,18 @@ export function SourcesPanel({ notebookId }: { notebookId: string }) {
                         {source.name}
                       </p>
                       <p className="mt-1 text-[10px] text-muted-foreground">
-                        Added {formatDistanceToNow(source.addedAt, { addSuffix: true })}
+                        Added {formatDistanceToNow(
+                          (() => {
+                            try {
+                              if (!source.addedAt) return new Date();
+                              const d = new Date(source.addedAt);
+                              return isNaN(d.getTime()) ? new Date() : d;
+                            } catch (e) {
+                              return new Date();
+                            }
+                          })(), 
+                          { addSuffix: true }
+                        )}
                       </p>
                     </div>
                   </div>
@@ -108,7 +119,7 @@ export function SourcesPanel({ notebookId }: { notebookId: string }) {
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
-                        onClick={() => removeSource(source.id)}
+                        onClick={() => removeSource(notebookId, source.id)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Remove

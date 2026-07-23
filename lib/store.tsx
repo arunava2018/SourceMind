@@ -12,9 +12,10 @@ interface StoreContextType {
   getNotebook: (id: string) => Notebook | undefined;
 
   sources: Source[];
+  loadSources: (notebookId: string) => Promise<void>;
   getSourcesForNotebook: (notebookId: string) => Source[];
   addSource: (notebookId: string, name: string, type: SourceType, metadata?: SourceMetadata) => void;
-  removeSource: (id: string) => void;
+  removeSource: (notebookId: string, id: string) => void;
   reindexSource: (id: string) => void;
 
   messages: Message[];
@@ -142,35 +143,98 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  const loadSources = useCallback(async (notebookId: string) => {
+    try {
+      const token = localStorage.getItem('chaibooklm_token');
+      if (!token) return;
+      const res = await axios.get(`/api/notebooks/${notebookId}/sources`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const dbSources = res.data.sources.map((dbSource: any) => ({
+        ...dbSource,
+        type: dbSource.type.toLowerCase() as SourceType,
+        addedAt: new Date(dbSource.uploadedAt || dbSource.createdAt || new Date())
+      }));
+      
+      setSources(prev => {
+        // Remove old sources for this notebook to avoid duplicates
+        const filtered = prev.filter(s => s.notebookId !== notebookId);
+        return [...dbSources, ...filtered];
+      });
+    } catch (error) {
+      console.error("Failed to load sources:", error);
+    }
+  }, []);
+
   const getSourcesForNotebook = useCallback((notebookId: string) => {
     return sources.filter(s => s.notebookId === notebookId).sort((a, b) => b.addedAt.getTime() - a.addedAt.getTime());
   }, [sources]);
 
-  const addSource = useCallback((notebookId: string, name: string, type: SourceType, metadata?: SourceMetadata) => {
-    const newSource: Source = {
-      id: crypto.randomUUID(),
-      notebookId,
-      name,
-      type,
-      status: 'uploading',
-      metadata: metadata || {},
-      addedAt: new Date()
-    };
-    
-    setSources(prev => [newSource, ...prev]);
+  const addSource = useCallback(async (notebookId: string, name: string, type: SourceType, metadata?: any) => {
+    try {
+      if (type === 'text' && metadata?.content) {
+        const token = localStorage.getItem('chaibooklm_token');
+        const res = await axios.post(`/api/notebooks/${notebookId}/sources`, {
+          name,
+          type: 'TEXT',
+          content: metadata.content
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Add the real source from DB, mapping createdAt string to addedAt Date
+        const dbSource = res.data.source;
+        const newSource: Source = {
+          ...dbSource,
+          type: dbSource.type.toLowerCase() as SourceType, // Ensure type is lowercase (e.g. 'text' not 'TEXT')
+          addedAt: new Date(dbSource.uploadedAt || dbSource.createdAt || new Date())
+        };
+        setSources(prev => [newSource, ...prev]);
+        return;
+      }
 
-    setTimeout(() => {
-      setSources(prev => prev.map(s => s.id === newSource.id ? { ...s, status: 'indexing' as SourceStatus } : s));
+      // Mock for other unsupported types
+      const newSource: Source = {
+        id: crypto.randomUUID(),
+        notebookId,
+        name,
+        type,
+        status: 'uploading',
+        metadata: metadata || {},
+        addedAt: new Date()
+      };
       
+      setSources(prev => [newSource, ...prev]);
+
       setTimeout(() => {
-        setSources(prev => prev.map(s => s.id === newSource.id ? { ...s, status: 'ready' as SourceStatus } : s));
-      }, 2000);
-    }, 1500);
+        setSources(prev => prev.map(s => s.id === newSource.id ? { ...s, status: 'indexing' as SourceStatus } : s));
+        
+        setTimeout(() => {
+          setSources(prev => prev.map(s => s.id === newSource.id ? { ...s, status: 'ready' as SourceStatus } : s));
+        }, 2000);
+      }, 1500);
+    } catch (error) {
+      console.error("Failed to add source:", error);
+    }
   }, []);
 
-  const removeSource = useCallback((id: string) => {
-    setSources(prev => prev.filter(s => s.id !== id));
-  }, []);
+  const removeSource = useCallback(async (notebookId: string, sourceId: string) => {
+    try {
+      const token = localStorage.getItem('chaibooklm_token');
+      if (!token) return;
+      
+      // Optimistically remove from UI
+      setSources(prev => prev.filter(s => s.id !== sourceId));
+
+      await axios.delete(`/api/notebooks/${notebookId}/sources/${sourceId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error("Failed to delete source:", error);
+      // Revert the deletion by reloading sources
+      loadSources(notebookId);
+    }
+  }, [loadSources]);
 
   const reindexSource = useCallback((id: string) => {
     setSources(prev => prev.map(s => s.id === id ? { ...s, status: 'indexing' as SourceStatus } : s));
@@ -183,7 +247,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return messages.filter(m => m.notebookId === notebookId).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }, [messages]);
 
-  const sendMessage = useCallback((notebookId: string, content: string) => {
+  const sendMessage = useCallback(async (notebookId: string, content: string) => {
     const userMessage: Message = {
       id: crypto.randomUUID(),
       notebookId,
@@ -192,31 +256,87 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createdAt: new Date()
     };
     
-    setMessages(prev => [...prev, userMessage]);
+    const assistantMessageId = crypto.randomUUID();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      notebookId,
+      role: 'assistant',
+      content: '',
+      createdAt: new Date()
+    };
+
+    // Pre-calculate message history to send to API
+    // We capture current state from store, but because of closures we might need to rely on the current `messages` array in scope
+    // Ideally we'd use a ref or functional update, but since this is bound to the latest render it should be fine.
+    const history = messages.filter(m => m.notebookId === notebookId).map(m => ({
+      role: m.role,
+      content: m.content
+    }));
+    history.push({ role: 'user', content });
+
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsGenerating(true);
 
-    setTimeout(() => {
-      // Use state callback to ensure we get the latest sources when the timeout resolves, or capture them now.
-      // Capturing them from scope might be stale if sources changed, but for our mock it's usually fine.
-      setSources(currentSources => {
-        const notebookSources = currentSources.filter(s => s.notebookId === notebookId);
-        const { content: aiContent, citations } = generateMockResponse(content, notebookSources);
-        
-        const aiMessage: Message = {
-          id: crypto.randomUUID(),
-          notebookId,
-          role: 'assistant',
-          content: aiContent,
-          citations,
-          createdAt: new Date()
-        };
-        
-        setMessages(prevMsgs => [...prevMsgs, aiMessage]);
-        setIsGenerating(false);
-        return currentSources;
+    try {
+      const token = localStorage.getItem('chaibooklm_token');
+      const response = await fetch(`/api/notebooks/${notebookId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ messages: history })
       });
-    }, 1500);
-  }, []);
+
+      if (!response.ok) throw new Error("Failed to send message");
+
+      // Extract custom citations header
+      const citationsHeader = response.headers.get('x-citations');
+      let citations: Citation[] = [];
+      if (citationsHeader) {
+         try {
+           citations = JSON.parse(atob(citationsHeader));
+         } catch (e) {
+           console.error("Failed to parse citations", e);
+         }
+      }
+
+      // Attach citations to the assistant message
+      if (citations.length > 0) {
+        setMessages(prev => prev.map(m => 
+          m.id === assistantMessageId ? { ...m, citations } : m
+        ));
+      }
+
+      // Read the stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let aiContent = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          aiContent += chunk;
+          
+          // Update the message in state with the new chunk
+          setMessages(prev => prev.map(m => 
+            m.id === assistantMessageId ? { ...m, content: aiContent } : m
+          ));
+        }
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+      // Optional: Add error message to UI
+      setMessages(prev => prev.map(m => 
+        m.id === assistantMessageId ? { ...m, content: "Sorry, I encountered an error while processing your request." } : m
+      ));
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [messages]);
 
   const setActiveViewerSourceWrapper = useCallback((source: Source, citation?: Citation) => {
     setActiveViewerSource({ source, citation });
@@ -233,6 +353,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deleteNotebook,
       getNotebook,
       sources,
+      loadSources,
       getSourcesForNotebook,
       addSource,
       removeSource,

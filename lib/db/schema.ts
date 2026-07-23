@@ -9,6 +9,7 @@ import {
   pgEnum,
   index,
   json,
+  vector,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -134,14 +135,20 @@ export const sourceChunks = pgTable(
       .references(() => sources.id, { onDelete: "cascade" }),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
-    // embedding column will be added via raw SQL migration for pgvector
+    embedding: vector("embedding", { dimensions: 768 }),
     tokenCount: integer("token_count"),
     metadata: json("metadata"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("source_chunks_source_id_idx").on(table.sourceId)],
+  (table) => [
+    index("source_chunks_source_id_idx").on(table.sourceId),
+    index("source_chunks_embedding_idx").using(
+      "hnsw",
+      table.embedding.op("vector_cosine_ops")
+    ),
+  ],
 );
 
 export const sourceChunksRelations = relations(

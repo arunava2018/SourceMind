@@ -27,6 +27,7 @@ export interface SourceMetadata {
   pageCount?: number;
   fileSize?: number;
   mimeType?: string;
+  content?: string;
 }
 
 export interface Citation {
