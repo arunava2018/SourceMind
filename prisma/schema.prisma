@@ -1,0 +1,153 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────────
+
+enum SourceType {
+  PDF
+  TEXT
+  URL
+  YOUTUBE
+  VTT
+}
+
+enum SourceStatus {
+  UPLOADING
+  INDEXING
+  READY
+  ERROR
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+}
+
+// ─── User ───────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(uuid())
+  name          String
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  avatarUrl     String?    @map("avatar_url")
+  emailVerified Boolean    @default(false) @map("email_verified")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  notebooks Notebook[]
+  messages  Message[]
+
+  @@map("users")
+}
+
+// ─── Notebook ───────────────────────────────────────────────────────────────────
+
+model Notebook {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  userId      String   @map("user_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources  Source[]
+  messages Message[]
+
+  @@index([userId])
+  @@map("notebooks")
+}
+
+// ─── Source ─────────────────────────────────────────────────────────────────────
+
+model Source {
+  id              String       @id @default(uuid())
+  notebookId      String       @map("notebook_id")
+  name            String
+  type            SourceType
+  status          SourceStatus @default(UPLOADING)
+  url             String?
+  filePath        String?      @map("file_path")
+  fileSize        Int?         @map("file_size")
+  mimeType        String?      @map("mime_type")
+  pageCount       Int?         @map("page_count")
+  duration        String?
+  originalContent String?      @map("original_content") @db.Text
+  errorMessage    String?      @map("error_message")
+  uploadedAt      DateTime     @default(now()) @map("uploaded_at")
+
+  notebook  Notebook          @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  chunks    SourceChunk[]
+  citations MessageCitation[]
+
+  @@index([notebookId])
+  @@index([notebookId, status])
+  @@map("sources")
+}
+
+// ─── Source Chunk (RAG Vector Storage) ──────────────────────────────────────────
+
+model SourceChunk {
+  id         String   @id @default(uuid())
+  sourceId   String   @map("source_id")
+  chunkIndex Int      @map("chunk_index")
+  content    String   @db.Text
+  embedding  Unsupported("vector")?
+  tokenCount Int?     @map("token_count")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  source    Source            @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  citations MessageCitation[]
+
+  @@index([sourceId])
+  @@map("source_chunks")
+}
+
+// ─── Message ────────────────────────────────────────────────────────────────────
+
+model Message {
+  id         String      @id @default(uuid())
+  notebookId String      @map("notebook_id")
+  userId     String      @map("user_id")
+  role       MessageRole
+  content    String      @db.Text
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  notebook  Notebook          @relation(fields: [notebookId], references: [id], onDelete: Cascade)
+  user      User              @relation(fields: [userId], references: [id])
+  citations MessageCitation[]
+
+  @@index([notebookId])
+  @@index([notebookId, createdAt])
+  @@map("messages")
+}
+
+// ─── Message Citation ───────────────────────────────────────────────────────────
+
+model MessageCitation {
+  id            String   @id @default(uuid())
+  messageId     String   @map("message_id")
+  sourceId      String   @map("source_id")
+  sourceChunkId String?  @map("source_chunk_id")
+  chunkText     String   @db.Text @map("chunk_text")
+  chunkIndex    Int      @map("chunk_index")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  message     Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  source      Source       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  sourceChunk SourceChunk? @relation(fields: [sourceChunkId], references: [id], onDelete: SetNull)
+
+  @@index([messageId])
+  @@index([sourceId])
+  @@map("message_citations")
+}

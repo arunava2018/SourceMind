@@ -7,6 +7,7 @@ import { CreateNotebookDialog } from "@/components/dashboard/create-notebook-dia
 import { BookOpen, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { useEffect } from "react"
 
 export default function DashboardPage() {
@@ -34,7 +35,9 @@ export default function DashboardPage() {
       <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b bg-background px-6">
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5" />
-          <span className="font-semibold tracking-tight">ChaibookLM</span>
+          <Link href='/'>
+            <span className="font-semibold tracking-tight">ChaibookLM</span>
+          </Link>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-muted-foreground">
