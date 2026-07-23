@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { db } from "@/lib/db";
+import { users, notebooks } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
+import { eq, count } from "drizzle-orm";
 
 /**
  * GET /api/auth/me
@@ -14,36 +16,37 @@ export async function GET(request: NextRequest) {
     );
 
     if (!authPayload) {
-      return Response.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: authPayload.userId },
-      select: {
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, authPayload.userId),
+      columns: {
         id: true,
         name: true,
         email: true,
-        avatarUrl: true,
         emailVerified: true,
         createdAt: true,
         updatedAt: true,
-        _count: {
-          select: { notebooks: true },
-        },
       },
     });
 
     if (!user) {
-      return Response.json(
-        { error: "User not found" },
-        { status: 404 },
-      );
+      return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    return Response.json({ user });
+    // Get notebook count
+    const [notebookCount] = await db
+      .select({ count: count() })
+      .from(notebooks)
+      .where(eq(notebooks.userId, authPayload.userId));
+
+    return Response.json({
+      user: {
+        ...user,
+        notebookCount: notebookCount.count,
+      },
+    });
   } catch (error) {
     console.error("Auth check error:", error);
     return Response.json(

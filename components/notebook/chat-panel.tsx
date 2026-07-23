@@ -140,14 +140,15 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Ask a question about your sources..."
+            placeholder={notebookSources.length === 0 ? "Add sources to start chatting..." : "Ask a question about your sources..."}
             className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent p-3 shadow-none focus-visible:ring-0"
             rows={1}
+            disabled={notebookSources.length === 0}
           />
           <Button 
             type="submit" 
             size="icon" 
-            disabled={!input.trim() || isGenerating}
+            disabled={!input.trim() || isGenerating || notebookSources.length === 0}
             className="h-10 w-10 shrink-0 rounded-lg mb-0.5"
           >
             <Send className="h-4 w-4" />

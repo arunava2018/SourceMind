@@ -1,30 +1,26 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { verifyPassword, signToken, validateEmail } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { verifyPassword, signToken } from "@/lib/auth";
+import { loginSchema } from "@/lib/validations";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password } = body;
 
-    // ─── Validate input ───────────────────────────────────────────────────────
-    if (!email || !password) {
-      return Response.json(
-        { error: "Email and password are required" },
-        { status: 400 },
-      );
+    // ─── Validate input with Zod ────────────────────────────────────────────
+    const result = loginSchema.safeParse(body);
+    if (!result.success) {
+      const errors = result.error.flatten().fieldErrors;
+      return Response.json({ error: "Validation failed", errors }, { status: 400 });
     }
 
-    if (!validateEmail(email)) {
-      return Response.json(
-        { error: "Invalid email format" },
-        { status: 400 },
-      );
-    }
+    const { email, password } = result.data;
 
-    // ─── Find user ────────────────────────────────────────────────────────────
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase().trim() },
+    // ─── Find user ──────────────────────────────────────────────────────────
+    const user = await db.query.users.findFirst({
+      where: eq(users.email, email),
     });
 
     if (!user) {
@@ -34,7 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── Verify password ──────────────────────────────────────────────────────
+    // ─── Verify password ────────────────────────────────────────────────────
     const isValid = await verifyPassword(password, user.passwordHash);
 
     if (!isValid) {
@@ -44,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── Generate JWT ─────────────────────────────────────────────────────────
+    // ─── Generate JWT ───────────────────────────────────────────────────────
     const token = signToken({ userId: user.id, email: user.email });
 
     return Response.json({
@@ -52,7 +48,6 @@ export async function POST(request: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
-        avatarUrl: user.avatarUrl,
         createdAt: user.createdAt,
       },
       token,

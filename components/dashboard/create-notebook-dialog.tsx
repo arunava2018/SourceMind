@@ -25,11 +25,11 @@ export function CreateNotebookDialog() {
   const { createNotebook } = useStore()
   const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
-    const notebook = createNotebook(title, description)
+    const notebook = await createNotebook(title, description)
     setOpen(false)
     setTitle("")
     setDescription("")

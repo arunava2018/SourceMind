@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import axios, { AxiosError } from 'axios';
 import { User } from './types';
 
 interface AuthContextType {
@@ -17,51 +18,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const storedUser = localStorage.getItem('chaibooklm_user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse stored user', e);
-      }
+  const fetchUser = async (token: string) => {
+    try {
+      const res = await axios.get('/api/auth/me', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      setUser(res.data.user);
+    } catch (e) {
+      console.error('Failed to fetch user', e);
+      // Token might be invalid or expired
+      localStorage.removeItem('chaibooklm_token');
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem('chaibooklm_token');
+    if (token) {
+      fetchUser(token);
+    } else {
+      setIsLoading(false);
+    }
   }, []);
 
   const login = async (email: string, password?: string) => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        const newUser: User = {
-          id: Math.random().toString(36).substring(7),
-          name: email.split('@')[0],
-          email,
-        };
-        setUser(newUser);
-        localStorage.setItem('chaibooklm_user', JSON.stringify(newUser));
-        resolve();
-      }, 1000);
-    });
+    try {
+      const res = await axios.post('/api/auth/login', { email, password });
+      
+      localStorage.setItem('chaibooklm_token', res.data.token);
+      setUser(res.data.user);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        throw new Error(error.response?.data?.error || 'Login failed');
+      }
+      throw error;
+    }
   };
 
   const signup = async (name: string, email: string, password?: string) => {
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        const newUser: User = {
-          id: Math.random().toString(36).substring(7),
-          name,
-          email,
-        };
-        setUser(newUser);
-        localStorage.setItem('chaibooklm_user', JSON.stringify(newUser));
-        resolve();
-      }, 1200);
-    });
+    try {
+      const res = await axios.post('/api/auth/signup', { name, email, password });
+      
+      localStorage.setItem('chaibooklm_token', res.data.token);
+      setUser(res.data.user);
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        // In a real app we might want to handle validation errors more cleanly (e.g., error.response.data.errors)
+        throw new Error(error.response?.data?.error || 'Signup failed');
+      }
+      throw error;
+    }
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('chaibooklm_user');
+    localStorage.removeItem('chaibooklm_token');
   };
 
   return (

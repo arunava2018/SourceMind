@@ -33,7 +33,9 @@ function getJwtSecret(): string {
 
 export function signToken(payload: JwtPayload): string {
   const expiresIn = process.env.JWT_EXPIRES_IN || "7d";
-  return jwt.sign(payload, getJwtSecret(), { expiresIn });
+  return jwt.sign(payload, getJwtSecret(), {
+    expiresIn: expiresIn as jwt.SignOptions["expiresIn"],
+  });
 }
 
 export function verifyToken(token: string): JwtPayload {
@@ -43,7 +45,7 @@ export function verifyToken(token: string): JwtPayload {
 // ─── Auth Helpers ───────────────────────────────────────────────────────────────
 
 /**
- * Extract and verify the JWT from the Authorization header or cookie.
+ * Extract and verify the JWT from the Authorization header.
  * Returns the decoded payload or null if invalid/missing.
  */
 export function getAuthFromHeader(
@@ -53,38 +55,10 @@ export function getAuthFromHeader(
     return null;
   }
 
-  const token = authHeader.slice(7); // Remove "Bearer "
+  const token = authHeader.slice(7);
   try {
     return verifyToken(token);
   } catch {
     return null;
   }
-}
-
-/**
- * Validates password strength.
- * Returns an error message if invalid, or null if valid.
- */
-export function validatePassword(password: string): string | null {
-  if (password.length < 8) {
-    return "Password must be at least 8 characters long";
-  }
-  if (!/[A-Z]/.test(password)) {
-    return "Password must contain at least one uppercase letter";
-  }
-  if (!/[a-z]/.test(password)) {
-    return "Password must contain at least one lowercase letter";
-  }
-  if (!/[0-9]/.test(password)) {
-    return "Password must contain at least one number";
-  }
-  return null;
-}
-
-/**
- * Validates email format.
- */
-export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
 }

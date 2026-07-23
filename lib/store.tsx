@@ -1,13 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import { Notebook, Source, SourceType, SourceMetadata, SourceStatus, Message, Citation } from './types';
-import { mockNotebooks, mockSources, mockMessages } from './mock-data';
+import { mockSources, mockMessages } from './mock-data';
 
 interface StoreContextType {
   notebooks: Notebook[];
-  createNotebook: (title: string, description: string) => Notebook;
-  deleteNotebook: (id: string) => void;
+  createNotebook: (title: string, description: string) => Promise<Notebook>;
+  deleteNotebook: (id: string) => Promise<void>;
   getNotebook: (id: string) => Notebook | undefined;
 
   sources: Source[];
@@ -68,32 +69,77 @@ const generateMockResponse = (query: string, sources: Source[]): { content: stri
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notebooks, setNotebooks] = useState<Notebook[]>(mockNotebooks);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [sources, setSources] = useState<Source[]>(mockSources);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeViewerSource, setActiveViewerSource] = useState<{ source: Source; citation?: Citation } | null>(null);
 
+  // Fetch notebooks on mount
+  useEffect(() => {
+    const fetchNotebooks = async () => {
+      try {
+        const token = localStorage.getItem('chaibooklm_token');
+        if (!token) return;
+        
+        const res = await axios.get('/api/notebooks', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        // Ensure dates are parsed back to Date objects
+        const fetchedNotebooks = res.data.notebooks.map((n: any) => ({
+          ...n,
+          createdAt: new Date(n.createdAt),
+          updatedAt: new Date(n.updatedAt)
+        }));
+        
+        setNotebooks(fetchedNotebooks);
+      } catch (error) {
+        console.error("Failed to fetch notebooks", error);
+      }
+    };
+    fetchNotebooks();
+  }, []);
+
   const getNotebook = useCallback((id: string) => {
     return notebooks.find(n => n.id === id);
   }, [notebooks]);
 
-  const createNotebook = useCallback((title: string, description: string) => {
-    const newNotebook: Notebook = {
-      id: crypto.randomUUID(),
-      title,
-      description,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setNotebooks(prev => [...prev, newNotebook]);
-    return newNotebook;
+  const createNotebook = useCallback(async (title: string, description: string) => {
+    try {
+      const token = localStorage.getItem('chaibooklm_token');
+      const res = await axios.post('/api/notebooks', { title, description }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const newNotebook = {
+        ...res.data.notebook,
+        createdAt: new Date(res.data.notebook.createdAt),
+        updatedAt: new Date(res.data.notebook.updatedAt)
+      };
+      
+      setNotebooks(prev => [newNotebook, ...prev]);
+      return newNotebook;
+    } catch (error) {
+      console.error("Failed to create notebook", error);
+      throw error;
+    }
   }, []);
 
-  const deleteNotebook = useCallback((id: string) => {
-    setNotebooks(prev => prev.filter(n => n.id !== id));
-    setSources(prev => prev.filter(s => s.notebookId !== id));
-    setMessages(prev => prev.filter(m => m.notebookId !== id));
+  const deleteNotebook = useCallback(async (id: string) => {
+    try {
+      // Optimistic delete
+      setNotebooks(prev => prev.filter(n => n.id !== id));
+      setSources(prev => prev.filter(s => s.notebookId !== id));
+      setMessages(prev => prev.filter(m => m.notebookId !== id));
+
+      const token = localStorage.getItem('chaibooklm_token');
+      await axios.delete(`/api/notebooks/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (error) {
+      console.error("Failed to delete notebook", error);
+    }
   }, []);
 
   const getSourcesForNotebook = useCallback((notebookId: string) => {
