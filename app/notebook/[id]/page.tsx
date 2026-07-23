@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 export default function NotebookWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { user, isLoading: authLoading, logout } = useAuth()
-  const { getNotebook, activeViewerSource, closeViewer, loadSources } = useStore()
+  const { getNotebook, activeViewerSource, closeViewer, loadSources, loadMessages } = useStore()
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
 
@@ -26,8 +26,9 @@ export default function NotebookWorkspace({ params }: { params: Promise<{ id: st
     setIsMounted(true)
     if (id) {
       loadSources(id)
+      loadMessages(id)
     }
-  }, [id, loadSources])
+  }, [id, loadSources, loadMessages])
 
   useEffect(() => {
     if (isMounted && !authLoading && !user) {

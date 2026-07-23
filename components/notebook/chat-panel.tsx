@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Send, User, Bot, Loader2 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 export function ChatPanel({ notebookId }: { notebookId: string }) {
   const { getMessagesForNotebook, sendMessage, isGenerating, setActiveViewerSource, sources } = useStore()
@@ -83,7 +85,11 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                           : "bg-muted/50"
                       }`}
                     >
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {message.content}
+                        </ReactMarkdown>
+                      </div>
                       
                       {/* Inline Citations rendering logic could go here by parsing [1], [2] out of content, 
                           but for simplicity we'll just show them below the message */}

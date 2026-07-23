@@ -44,17 +44,16 @@ export async function POST(
       return Response.json({ error: "Only TEXT sources are currently supported." }, { status: 400 });
     }
 
-    // Wrap in a transaction so if embedding generation fails, we don't leave an orphaned source
-    const updatedSource = await db.transaction(async (tx) => {
-      // 1. Create the source record
-      const [source] = await tx.insert(sources).values({
-        notebookId,
-        name: data.name || "Untitled Text Source",
-        type: "TEXT",
-        originalContent: data.content,
-        status: "INDEXING", // Instantly start indexing
-      }).returning();
-  
+    // 1. Create the source record
+    const [source] = await db.insert(sources).values({
+      notebookId,
+      name: data.name || "Untitled Text Source",
+      type: "TEXT",
+      originalContent: data.content,
+      status: "INDEXING", // Instantly start indexing
+    }).returning();
+
+    try {
       // 2. Chunk the text
       const chunks = await chunkText(data.content);
   
@@ -69,18 +68,20 @@ export async function POST(
         embedding: embeddings[index],
       }));
   
-      await tx.insert(sourceChunks).values(chunksToInsert);
+      await db.insert(sourceChunks).values(chunksToInsert);
   
       // 5. Update source status to READY
-      const [finalSource] = await tx.update(sources)
+      const [finalSource] = await db.update(sources)
         .set({ status: "READY" })
         .where(eq(sources.id, source.id))
         .returning();
 
-      return finalSource;
-    });
-
-    return Response.json({ success: true, source: updatedSource }, { status: 201 });
+      return Response.json({ success: true, source: finalSource }, { status: 201 });
+    } catch (e) {
+      // Manual rollback if embedding or chunking fails
+      await db.delete(sources).where(eq(sources.id, source.id));
+      throw e;
+    }
 
   } catch (error) {
     console.error("Add source error:", error);

@@ -19,6 +19,7 @@ interface StoreContextType {
   reindexSource: (id: string) => void;
 
   messages: Message[];
+  loadMessages: (notebookId: string) => Promise<void>;
   getMessagesForNotebook: (notebookId: string) => Message[];
   sendMessage: (notebookId: string, content: string) => void;
   isGenerating: boolean;
@@ -140,6 +141,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     } catch (error) {
       console.error("Failed to delete notebook", error);
+    }
+  }, []);
+
+  const loadMessages = useCallback(async (notebookId: string) => {
+    try {
+      const token = localStorage.getItem('chaibooklm_token');
+      if (!token) return;
+      const res = await axios.get(`/api/notebooks/${notebookId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const dbMessages = res.data.messages.map((dbMessage: any) => ({
+        ...dbMessage,
+        role: dbMessage.role.toLowerCase() as 'user' | 'assistant',
+        createdAt: new Date(dbMessage.createdAt)
+      }));
+      
+      setMessages(prev => {
+        // Remove old messages for this notebook to avoid duplicates
+        const filtered = prev.filter(m => m.notebookId !== notebookId);
+        return [...dbMessages, ...filtered];
+      });
+    } catch (error) {
+      console.error("Failed to load messages:", error);
     }
   }, []);
 
@@ -359,6 +384,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       removeSource,
       reindexSource,
       messages,
+      loadMessages,
       getMessagesForNotebook,
       sendMessage,
       isGenerating,
