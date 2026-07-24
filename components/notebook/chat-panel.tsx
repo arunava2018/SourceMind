@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Send, User, Bot, Loader2 } from "lucide-react"
+import { Send, User, Bot, Loader2, FileText, Globe, PlaySquare, MessageSquare, FileVideo } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
@@ -123,19 +123,42 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                     </div>
 
                     {message.citations && message.citations.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-1">
+                      <div className="flex flex-wrap gap-1.5 mt-2">
                         {message.citations.map((citation, index) => {
                           const source = notebookSources.find(s => s.id === citation.sourceId)
+                          const sourceType = source?.type || citation.sourceType || 'text'
+                          const iconConfig: Record<string, { icon: typeof FileText; color: string; bg: string }> = {
+                            pdf: { icon: FileText, color: "text-red-400", bg: "bg-red-500/10" },
+                            url: { icon: Globe, color: "text-blue-400", bg: "bg-blue-500/10" },
+                            youtube: { icon: PlaySquare, color: "text-red-500", bg: "bg-red-500/10" },
+                            vtt: { icon: FileVideo, color: "text-purple-400", bg: "bg-purple-500/10" },
+                            text: { icon: MessageSquare, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+                          }
+                          const config = iconConfig[sourceType] || iconConfig.text
+                          const TypeIcon = config.icon
                           return (
                             <button
                               key={citation.id}
-                              onClick={() => source && setActiveViewerSource(source, citation)}
-                              className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                              onClick={() => {
+                                if (source && (sourceType === 'url' || sourceType === 'youtube')) {
+                                  const targetUrl = source.url || (source.originalContent?.startsWith('http') ? source.originalContent : null);
+                                  if (targetUrl) {
+                                    window.open(targetUrl, '_blank');
+                                    return;
+                                  }
+                                }
+                                if (source) setActiveViewerSource(source, citation);
+                              }}
+                              className="group inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/80 backdrop-blur-sm px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground hover:border-border hover:shadow-sm"
+                              title={`View citation from ${citation.sourceName}`}
                             >
-                              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary/10 text-[9px] text-primary">
+                              <span className={`flex h-4 w-4 items-center justify-center rounded ${config.bg}`}>
+                                <TypeIcon className={`h-2.5 w-2.5 ${config.color}`} />
+                              </span>
+                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
                                 {index + 1}
                               </span>
-                              <span className="truncate max-w-[150px]">{citation.sourceName}</span>
+                              <span className="truncate max-w-[140px] group-hover:text-foreground transition-colors">{citation.sourceName}</span>
                             </button>
                           )
                         })}

@@ -235,11 +235,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSources(prev => [optimisticSource, ...prev]);
 
         let payload: any = { name, type: type.toUpperCase() };
-        if (type === 'text' || type === 'vtt') {
+        if (type === 'text' || type === 'vtt' || type === 'pdf') {
            payload.content = metadata?.content;
-        } else if (type === 'pdf') {
-           payload.content = metadata?.content;
-           payload.url = metadata?.url;
         } else {
            payload.url = metadata?.url;
         }
@@ -259,9 +256,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           setSources(prev => prev.map(s => s.id === tempId ? newSource : s));
           touchNotebook(notebookId);
-        } catch (err) {
+        } catch (err: any) {
           // On error, mark the temporary source as error
           setSources(prev => prev.map(s => s.id === tempId ? { ...s, status: 'error' as SourceStatus } : s));
+          
+          // Extract backend error message if available
+          if (err.response?.data?.error) {
+            throw new Error(err.response.data.error);
+          }
           throw err;
         }
         return;

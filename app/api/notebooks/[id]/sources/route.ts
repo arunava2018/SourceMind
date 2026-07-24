@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 import { sources, sourceChunks, notebooks } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
 import { addSourceSchema } from "@/lib/validations";
-import { and, eq } from "drizzle-orm";
-import { chunkText } from "@/lib/ai/chunker";
+import { and, eq, gte } from "drizzle-orm";
+import { chunkText, chunkPdfText } from "@/lib/ai/chunker";
 import { generateEmbeddings } from "@/lib/ai/embedding";
 import { loadYoutubeTranscript, loadWebPage } from "@/lib/ai/loaders";
 
@@ -29,6 +29,26 @@ export async function POST(
       return Response.json({ error: "Notebook not found" }, { status: 404 });
     }
 
+    // Rate limiting: 5 sources per day per user
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentSources = await db
+      .select({ id: sources.id })
+      .from(sources)
+      .innerJoin(notebooks, eq(sources.notebookId, notebooks.id))
+      .where(
+        and(
+          eq(notebooks.userId, authPayload.userId),
+          gte(sources.uploadedAt, twentyFourHoursAgo)
+        )
+      );
+
+    if (recentSources.length >= 5) {
+      return Response.json(
+        { error: "Rate limit exceeded. You can only add up to 5 sources per 24 hours." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const result = addSourceSchema.safeParse(body);
 
@@ -50,26 +70,35 @@ export async function POST(
       notebookId,
       name: data.name || ((data.type === "TEXT" || data.type === "VTT") ? "Untitled Text Source" : (data.type === "PDF" ? "PDF Document" : "Web Source")),
       type: data.type,
-      originalContent: (data.type === "TEXT" || data.type === "VTT") ? data.content : data.url,
+      originalContent: (data.type === "TEXT" || data.type === "VTT" || data.type === "PDF") ? data.content : undefined,
+      url: (data.type === "URL" || data.type === "YOUTUBE") ? data.url : undefined,
       status: "INDEXING", // Instantly start indexing
     }).returning();
 
     try {
       // 2. Chunk the text
       let chunks: string[] = [];
+      let chunkMetadata: (Record<string, any> | undefined)[] = [];
       let fetchedTitle: string | undefined = undefined;
       let fullText: string | undefined = undefined;
       
-      if (data.type === "TEXT" || data.type === "VTT" || data.type === "PDF") {
+      if (data.type === "PDF") {
+        const pdfChunks = await chunkPdfText(data.content);
+        chunks = pdfChunks.map(c => c.content);
+        chunkMetadata = pdfChunks.map(c => ({ pageNumber: c.pageNumber }));
+      } else if (data.type === "TEXT" || data.type === "VTT") {
         chunks = await chunkText(data.content);
+        chunkMetadata = chunks.map(() => undefined);
       } else if (data.type === "YOUTUBE") {
         const result = await loadYoutubeTranscript(data.url);
         chunks = result.chunks;
+        chunkMetadata = chunks.map(() => undefined);
         fetchedTitle = result.title;
         fullText = result.fullText;
       } else if (data.type === "URL") {
         const result = await loadWebPage(data.url);
         chunks = result.chunks;
+        chunkMetadata = chunks.map(() => undefined);
         fetchedTitle = result.title;
         fullText = result.fullText;
       }
@@ -83,6 +112,7 @@ export async function POST(
         chunkIndex: index,
         content: chunk,
         embedding: embeddings[index],
+        metadata: chunkMetadata[index] || undefined,
       }));
   
       await db.insert(sourceChunks).values(chunksToInsert);

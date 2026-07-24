@@ -2,11 +2,10 @@
 
 import { useState } from "react"
 import { useStore } from "@/lib/store"
-import { upload } from '@vercel/blob/client'
 import * as pdfjsLib from 'pdfjs-dist'
 
 if (typeof window !== "undefined") {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 }
 import { SourceType } from "@/lib/types"
 import { Button } from "@/components/ui/button"
@@ -54,7 +53,7 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
     setError(null)
     
     try {
-      // 1. Client-side parse
+      // 1. Client-side parse the PDF
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let text = '';
@@ -62,17 +61,11 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
          const page = await pdf.getPage(i);
          const content = await page.getTextContent();
          const strings = content.items.map((item: any) => item.str);
-         text += strings.join(' ') + '\n';
+         text += `[PAGE:${i}]\n` + strings.join(' ') + '\n';
       }
       
-      // 2. Upload to Vercel Blob
-      const blob = await upload(file.name, file, {
-        access: 'public',
-        handleUploadUrl: '/api/upload',
-      });
-      
-      // 3. Send to DB
-      await addSource(notebookId, file.name, "pdf", { content: text, url: blob.url });
+      // 2. Send extracted text to server for indexing
+      await addSource(notebookId, file.name, "pdf", { content: text });
       resetAndClose();
     } catch (err: any) {
       console.error(err)
@@ -165,24 +158,24 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
-          <TabsList className="grid grid-cols-5 h-auto p-1">
-            <TabsTrigger value="pdf" className="flex flex-col gap-1 py-3">
+          <TabsList className="grid grid-cols-5 !h-auto p-1 bg-muted rounded-2xl">
+            <TabsTrigger value="pdf" className="flex flex-col gap-1 py-3 !h-auto">
               <FileText className="h-4 w-4" />
               <span className="text-[10px]">PDF</span>
             </TabsTrigger>
-            <TabsTrigger value="youtube" className="flex flex-col gap-1 py-3">
+            <TabsTrigger value="youtube" className="flex flex-col gap-1 py-3 !h-auto">
               <PlaySquare className="h-4 w-4" />
               <span className="text-[10px]">YouTube</span>
             </TabsTrigger>
-            <TabsTrigger value="url" className="flex flex-col gap-1 py-3">
+            <TabsTrigger value="url" className="flex flex-col gap-1 py-3 !h-auto">
               <Globe className="h-4 w-4" />
               <span className="text-[10px]">Web</span>
             </TabsTrigger>
-            <TabsTrigger value="text" className="flex flex-col gap-1 py-3">
+            <TabsTrigger value="text" className="flex flex-col gap-1 py-3 !h-auto">
               <MessageSquare className="h-4 w-4" />
               <span className="text-[10px]">Text</span>
             </TabsTrigger>
-            <TabsTrigger value="vtt" className="flex flex-col gap-1 py-3">
+            <TabsTrigger value="vtt" className="flex flex-col gap-1 py-3 !h-auto">
               <FileVideo className="h-4 w-4" />
               <span className="text-[10px]">VTT</span>
             </TabsTrigger>

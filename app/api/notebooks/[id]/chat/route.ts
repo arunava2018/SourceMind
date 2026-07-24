@@ -6,7 +6,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { generateEmbedding } from "@/lib/ai/embedding";
 import { generateSystemPrompt, formatContext } from "@/lib/ai/prompt";
 import { streamText } from "ai";
-import { google } from "@ai-sdk/google";
+import { openai } from "@ai-sdk/openai";
 
 export async function POST(
   request: NextRequest,
@@ -45,8 +45,10 @@ export async function POST(
         ${sourceChunks.id}, 
         ${sourceChunks.content}, 
         ${sourceChunks.chunkIndex},
+        ${sourceChunks.metadata},
         ${sources.id} as "sourceId",
         ${sources.name} as "sourceName",
+        ${sources.type} as "sourceType",
         (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) as distance
       FROM ${sourceChunks}
       INNER JOIN ${sources} ON ${sourceChunks.sourceId} = ${sources.id}
@@ -60,9 +62,11 @@ export async function POST(
     const similarChunks = similarChunksRaw.rows.map((row: any) => ({
       id: row.id as string,
       content: row.content as string,
-      chunkIndex: row.chunk_index as number, // Note the snake_case mapping from raw query
+      chunkIndex: row.chunk_index as number,
+      metadata: row.metadata as Record<string, any> | null,
       sourceId: row.sourceId as string,
       sourceName: row.sourceName as string,
+      sourceType: (row.sourceType as string)?.toLowerCase(),
       distance: row.distance as number,
     }));
 
@@ -88,9 +92,9 @@ export async function POST(
       .set({ updatedAt: new Date() })
       .where(eq(notebooks.id, notebookId));
 
-    // 5. Stream the response from Gemini
+    // 5. Stream the response from OpenAI
     const result = await streamText({
-      model: google("gemini-3.5-flash"),
+      model: openai("gpt-4o"),
       system: systemPrompt,
       messages: chatMessages, // Send the conversation history
       async onFinish({ text }) {

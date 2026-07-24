@@ -17,6 +17,7 @@ export interface Source {
   status: SourceStatus;
   content?: string;
   originalContent?: string;
+  url?: string;
   metadata?: SourceMetadata;
   addedAt: Date;
 }

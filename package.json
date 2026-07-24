@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.23",
+    "@ai-sdk/openai": "^4.0.20",
     "@base-ui/react": "^1.6.0",
     "@langchain/textsplitters": "^1.0.1",
     "@neondatabase/serverless": "^1.1.0",
@@ -29,6 +30,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
+    "js-tiktoken": "^1.0.21",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.25.0",
     "next": "16.2.6",

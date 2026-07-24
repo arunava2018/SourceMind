@@ -81,7 +81,6 @@ export const addSourceSchema = z.discriminatedUnion("type", [
     type: z.literal("PDF"),
     name: z.string().max(500),
     content: z.string().min(1, "Content is required"),
-    url: z.string().url("Invalid PDF URL"),
   }),
   z.object({
     type: z.literal("VTT"),

@@ -135,7 +135,7 @@ export const sourceChunks = pgTable(
       .references(() => sources.id, { onDelete: "cascade" }),
     chunkIndex: integer("chunk_index").notNull(),
     content: text("content").notNull(),
-    embedding: vector("embedding", { dimensions: 768 }),
+    embedding: vector("embedding", { dimensions: 1536 }),
     tokenCount: integer("token_count"),
     metadata: json("metadata"),
     createdAt: timestamp("created_at", { withTimezone: true })
