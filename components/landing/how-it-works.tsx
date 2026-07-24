@@ -36,7 +36,7 @@ export function HowItWorks() {
             Three steps to grounded answers
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            ChaibookLM turns your scattered research materials into an organized,
+            SourceMind turns your scattered research materials into an organized,
             queryable knowledge base in minutes.
           </p>
         </div>

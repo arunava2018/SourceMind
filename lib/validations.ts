@@ -84,6 +84,7 @@ export const addSourceSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("VTT"),
     name: z.string().max(500),
+    content: z.string().min(1, "Content is required"),
   }),
 ]);
 

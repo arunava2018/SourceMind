@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error('Failed to fetch user', e);
       // Token might be invalid or expired
-      localStorage.removeItem('chaibooklm_token');
+      localStorage.removeItem('sourcemind_token');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('chaibooklm_token');
+    const token = localStorage.getItem('sourcemind_token');
     if (token) {
       fetchUser(token);
     } else {
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       
-      localStorage.setItem('chaibooklm_token', res.data.token);
+      localStorage.setItem('sourcemind_token', res.data.token);
       setUser(res.data.user);
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await axios.post('/api/auth/signup', { name, email, password });
       
-      localStorage.setItem('chaibooklm_token', res.data.token);
+      localStorage.setItem('sourcemind_token', res.data.token);
       setUser(res.data.user);
     } catch (error) {
       if (axios.isAxiosError(error)) {
@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('chaibooklm_token');
+    localStorage.removeItem('sourcemind_token');
   };
 
   return (

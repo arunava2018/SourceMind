@@ -28,7 +28,7 @@ export function Footer() {
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-2.5">
               <BookOpen className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold tracking-tight">ChaibookLM</span>
+              <span className="text-lg font-bold tracking-tight">SourceMind</span>
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
               Your AI-powered research assistant. Turn scattered PDFs, videos,
@@ -69,7 +69,7 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 text-sm text-muted-foreground md:flex-row">
-          <p>© {new Date().getFullYear()} ChaibookLM. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} SourceMind. All rights reserved.</p>
           <p>Built with ☕ and curiosity.</p>
         </div>
       </div>

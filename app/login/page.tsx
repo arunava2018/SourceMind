@@ -51,7 +51,7 @@ export default function LoginPage() {
         className="mb-8 flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
       >
         <BookOpen className="h-5 w-5" />
-        <span className="font-semibold">ChaibookLM</span>
+        <span className="font-semibold">SourceMind</span>
       </Link>
 
       <Card className="w-full max-w-sm">

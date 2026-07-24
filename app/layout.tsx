@@ -3,6 +3,12 @@ import { Geist, Geist_Mono, Roboto } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "SourceMind - Your AI Research Assistant",
+  description: "Chat with your documents, websites, and YouTube videos.",
+};
 
 const roboto = Roboto({subsets:['latin'],variable:'--font-sans'})
 

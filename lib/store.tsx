@@ -85,7 +85,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     const fetchNotebooks = async () => {
       try {
-        const token = localStorage.getItem('chaibooklm_token');
+        const token = localStorage.getItem('sourcemind_token');
         if (!token) return;
         
         const res = await axios.get('/api/notebooks', {
@@ -113,7 +113,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const createNotebook = useCallback(async (title: string, description: string) => {
     try {
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       const res = await axios.post('/api/notebooks', { title, description }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -139,7 +139,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSources(prev => prev.filter(s => s.notebookId !== id));
       setMessages(prev => prev.filter(m => m.notebookId !== id));
 
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       await axios.delete(`/api/notebooks/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -155,7 +155,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadMessages = useCallback(async (notebookId: string) => {
     setIsLoadingMessages(true);
     try {
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       if (!token) return;
       const res = await axios.get(`/api/notebooks/${notebookId}/messages`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -187,7 +187,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const loadSources = useCallback(async (notebookId: string) => {
     setIsLoadingSources(true);
     try {
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       if (!token) return;
       const res = await axios.get(`/api/notebooks/${notebookId}/sources`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -216,10 +216,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addSource = useCallback(async (notebookId: string, name: string, type: SourceType, metadata?: any) => {
     try {
-      const isApiSupportedType = type === 'text' || type === 'youtube' || type === 'url';
+      const isApiSupportedType = type === 'text' || type === 'youtube' || type === 'url' || type === 'vtt';
       
       if (isApiSupportedType) {
-        const token = localStorage.getItem('chaibooklm_token');
+        const token = localStorage.getItem('sourcemind_token');
         
         // Optimistic UI: Add a temporary source to show indexing status
         const tempId = crypto.randomUUID();
@@ -235,7 +235,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setSources(prev => [optimisticSource, ...prev]);
 
         let payload: any = { name, type: type.toUpperCase() };
-        if (type === 'text') {
+        if (type === 'text' || type === 'vtt') {
            payload.content = metadata?.content;
         } else {
            payload.url = metadata?.url;
@@ -291,7 +291,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const removeSource = useCallback(async (notebookId: string, sourceId: string) => {
     try {
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       if (!token) return;
       
       // Optimistically remove from UI
@@ -352,7 +352,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsGenerating(true);
 
     try {
-      const token = localStorage.getItem('chaibooklm_token');
+      const token = localStorage.getItem('sourcemind_token');
       const response = await fetch(`/api/notebooks/${notebookId}/chat`, {
         method: 'POST',
         headers: {

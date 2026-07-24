@@ -41,16 +41,16 @@ export async function POST(
 
     const data = result.data;
 
-    if (data.type !== "TEXT" && data.type !== "YOUTUBE" && data.type !== "URL") {
-      return Response.json({ error: "Only TEXT, YOUTUBE, and URL sources are currently supported." }, { status: 400 });
+    if (data.type !== "TEXT" && data.type !== "YOUTUBE" && data.type !== "URL" && data.type !== "VTT") {
+      return Response.json({ error: "Only TEXT, YOUTUBE, URL, and VTT sources are currently supported." }, { status: 400 });
     }
 
     // 1. Create the source record
     const [source] = await db.insert(sources).values({
       notebookId,
-      name: data.name || (data.type === "TEXT" ? "Untitled Text Source" : "Web Source"),
+      name: data.name || ((data.type === "TEXT" || data.type === "VTT") ? "Untitled Text Source" : "Web Source"),
       type: data.type,
-      originalContent: data.type === "TEXT" ? data.content : data.url,
+      originalContent: (data.type === "TEXT" || data.type === "VTT") ? data.content : data.url,
       status: "INDEXING", // Instantly start indexing
     }).returning();
 
@@ -60,7 +60,7 @@ export async function POST(
       let fetchedTitle: string | undefined = undefined;
       let fullText: string | undefined = undefined;
       
-      if (data.type === "TEXT") {
+      if (data.type === "TEXT" || data.type === "VTT") {
         chunks = await chunkText(data.content);
       } else if (data.type === "YOUTUBE") {
         const result = await loadYoutubeTranscript(data.url);

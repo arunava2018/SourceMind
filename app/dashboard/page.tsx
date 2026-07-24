@@ -36,7 +36,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <BookOpen className="h-5 w-5" />
           <Link href='/'>
-            <span className="font-semibold tracking-tight">ChaibookLM</span>
+            <span className="font-semibold tracking-tight">SourceMind</span>
           </Link>
         </div>
         <div className="flex items-center gap-4">

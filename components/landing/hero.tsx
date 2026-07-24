@@ -83,7 +83,7 @@ export function Hero() {
                 <div className="h-3 w-3 rounded-full bg-green-400/80" />
               </div>
               <div className="mx-auto rounded-md bg-muted px-16 py-1 text-xs text-muted-foreground">
-                chaibooklm.app
+                sourcemind.app
               </div>
             </div>
 

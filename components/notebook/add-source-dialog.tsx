@@ -41,9 +41,31 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
     resetAndClose()
   }
 
-  const handleAddVtt = () => {
-    addSource(notebookId, "Transcript.vtt", "vtt")
-    resetAndClose()
+  const handleAddVtt = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsSubmitting(true)
+    setError(null)
+    
+    const reader = new FileReader()
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string
+        await addSource(notebookId, file.name, "vtt", { content })
+        resetAndClose()
+      } catch (err: any) {
+        console.error(err)
+        setError(err.message || "Failed to add VTT source.")
+        setIsSubmitting(false)
+      }
+    }
+    reader.onerror = () => {
+      setError("Failed to read the file.")
+      setIsSubmitting(false)
+    }
+    
+    reader.readAsText(file)
   }
 
   const handleAddUrl = (e: React.FormEvent) => {
@@ -210,11 +232,27 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
 
             {/* VTT Tab */}
             <TabsContent value="vtt" className="m-0">
-              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-10 text-center">
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-10 text-center relative">
                 <UploadCloud className="mb-4 h-10 w-10 text-muted-foreground" />
                 <h3 className="mb-1 font-medium">Upload Subtitle / Transcript File</h3>
                 <p className="mb-4 text-xs text-muted-foreground">Supports .vtt and .srt formats</p>
-                <Button onClick={handleAddVtt}>Select File</Button>
+                {isSubmitting ? (
+                  <Button disabled>Uploading...</Button>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept=".vtt,.srt"
+                      onChange={handleAddVtt}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      title="Select a file"
+                    />
+                    <Button type="button">Select File</Button>
+                  </div>
+                )}
+                {error && (
+                  <p className="mt-4 text-sm text-destructive">{error}</p>
+                )}
               </div>
             </TabsContent>
           </div>

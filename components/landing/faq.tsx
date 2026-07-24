@@ -10,7 +10,7 @@ export function FAQ() {
     {
       question: "What types of files can I upload?",
       answer:
-        "ChaibookLM currently supports PDF documents, plain text files, YouTube video URLs (we extract the transcript), website URLs, and VTT/SRT transcript files. More formats are on the roadmap.",
+        "SourceMind currently supports PDF documents, plain text files, YouTube video URLs (we extract the transcript), website URLs, and VTT/SRT transcript files. More formats are on the roadmap.",
     },
     {
       question: "Are my sources private and secure?",
@@ -28,9 +28,9 @@ export function FAQ() {
         "You can add up to 50 sources per notebook on the free tier. Each individual file must be under 50MB. Need more? Reach out for enterprise options.",
     },
     {
-      question: "Can I use ChaibookLM for team research?",
+      question: "Can I use SourceMind for team research?",
       answer:
-        "Currently, ChaibookLM is designed for individual use. Team and collaboration features — including shared notebooks and role-based access — are on our roadmap.",
+        "Currently, SourceMind is designed for individual use. Team and collaboration features — including shared notebooks and role-based access — are on our roadmap.",
     },
   ]
 
@@ -45,7 +45,7 @@ export function FAQ() {
             Frequently Asked Questions
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-            Everything you need to know about using ChaibookLM.
+            Everything you need to know about using SourceMind.
           </p>
         </div>
 

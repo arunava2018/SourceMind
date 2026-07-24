@@ -5,7 +5,7 @@ export function Testimonials() {
   const testimonials = [
     {
       quote:
-        "ChaibookLM changed how I do literature reviews. I can upload 20 PDFs and instantly find connections between them with exact citations.",
+        "SourceMind changed how I do literature reviews. I can upload 20 PDFs and instantly find connections between them with exact citations.",
       author: "Dr. Sarah Jenkins",
       role: "Research Scientist",
       rating: 5,
@@ -37,7 +37,7 @@ export function Testimonials() {
             Loved by researchers and students
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            See how ChaibookLM is transforming the way people learn, research, and work.
+            See how SourceMind is transforming the way people learn, research, and work.
           </p>
         </div>
 
