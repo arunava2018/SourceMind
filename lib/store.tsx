@@ -12,6 +12,7 @@ interface StoreContextType {
   getNotebook: (id: string) => Notebook | undefined;
 
   sources: Source[];
+  isLoadingSources: boolean;
   loadSources: (notebookId: string) => Promise<void>;
   getSourcesForNotebook: (notebookId: string) => Source[];
   addSource: (notebookId: string, name: string, type: SourceType, metadata?: SourceMetadata) => void;
@@ -19,6 +20,7 @@ interface StoreContextType {
   reindexSource: (notebookId: string, id: string) => void;
 
   messages: Message[];
+  isLoadingMessages: boolean;
   loadMessages: (notebookId: string) => Promise<void>;
   getMessagesForNotebook: (notebookId: string) => Message[];
   sendMessage: (notebookId: string, content: string) => void;
@@ -75,6 +77,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [sources, setSources] = useState<Source[]>(mockSources);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingSources, setIsLoadingSources] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [activeViewerSource, setActiveViewerSource] = useState<{ source: Source; citation?: Citation } | null>(null);
 
   // Fetch notebooks on mount
@@ -149,6 +153,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const loadMessages = useCallback(async (notebookId: string) => {
+    setIsLoadingMessages(true);
     try {
       const token = localStorage.getItem('chaibooklm_token');
       if (!token) return;
@@ -174,10 +179,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     } catch (error) {
       console.error("Failed to load messages:", error);
+    } finally {
+      setIsLoadingMessages(false);
     }
   }, []);
 
   const loadSources = useCallback(async (notebookId: string) => {
+    setIsLoadingSources(true);
     try {
       const token = localStorage.getItem('chaibooklm_token');
       if (!token) return;
@@ -197,6 +205,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       });
     } catch (error) {
       console.error("Failed to load sources:", error);
+    } finally {
+      setIsLoadingSources(false);
     }
   }, []);
 
@@ -417,12 +427,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deleteNotebook,
       getNotebook,
       sources,
+      isLoadingSources,
       loadSources,
       getSourcesForNotebook,
       addSource,
       removeSource,
       reindexSource,
       messages,
+      isLoadingMessages,
       loadMessages,
       getMessagesForNotebook,
       sendMessage,

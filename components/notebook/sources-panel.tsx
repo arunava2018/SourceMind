@@ -54,7 +54,7 @@ const StatusIndicator = ({ status }: { status: Source['status'] }) => {
 }
 
 export function SourcesPanel({ notebookId }: { notebookId: string }) {
-  const { getSourcesForNotebook, removeSource, reindexSource } = useStore()
+  const { getSourcesForNotebook, removeSource, reindexSource, isLoadingSources } = useStore()
   const sources = getSourcesForNotebook(notebookId)
 
   return (
@@ -68,7 +68,22 @@ export function SourcesPanel({ notebookId }: { notebookId: string }) {
       </div>
 
       <div className="flex-1 overflow-auto p-4 pt-2">
-        {sources.length === 0 ? (
+        {isLoadingSources ? (
+          <div className="flex flex-col gap-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-lg border bg-card p-3 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <div className="h-4 w-4 shrink-0 rounded-full bg-muted animate-pulse" />
+                  <div className="w-full space-y-2">
+                    <div className="h-3 w-2/3 rounded-md bg-muted animate-pulse" />
+                    <div className="h-2 w-1/3 rounded-md bg-muted animate-pulse" />
+                  </div>
+                </div>
+                <div className="mt-2 h-3 w-1/4 rounded-md bg-muted animate-pulse" />
+              </div>
+            ))}
+          </div>
+        ) : sources.length === 0 ? (
           <div className="flex flex-col items-center justify-center pt-10 text-center text-sm text-muted-foreground">
             <div className="mb-3 rounded-full bg-muted p-3">
               <FileText className="h-5 w-5" />

@@ -11,7 +11,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 
 export function ChatPanel({ notebookId }: { notebookId: string }) {
-  const { getMessagesForNotebook, sendMessage, isGenerating, setActiveViewerSource, sources } = useStore()
+  const { getMessagesForNotebook, sendMessage, isGenerating, setActiveViewerSource, sources, isLoadingMessages } = useStore()
   const messages = getMessagesForNotebook(notebookId)
   const notebookSources = sources.filter(s => s.notebookId === notebookId)
   
@@ -45,7 +45,27 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
       <div className="flex-1 overflow-hidden relative">
         <ScrollArea className="h-full px-4" ref={scrollRef}>
           <div className="mx-auto flex max-w-3xl flex-col gap-6 py-8">
-            {messages.length === 0 ? (
+            {isLoadingMessages ? (
+              // Chat Skeleton
+              <div className="flex flex-col gap-6">
+                <div className="flex gap-4 flex-row-reverse">
+                  <Avatar className="h-8 w-8 shrink-0 border">
+                    <AvatarFallback className="bg-muted animate-pulse" />
+                  </Avatar>
+                  <div className="flex flex-col gap-2 max-w-[85%] items-end">
+                    <div className="h-10 w-48 rounded-2xl bg-muted animate-pulse" />
+                  </div>
+                </div>
+                <div className="flex gap-4 flex-row">
+                  <Avatar className="h-8 w-8 shrink-0 border">
+                    <AvatarFallback className="bg-muted animate-pulse" />
+                  </Avatar>
+                  <div className="flex flex-col gap-2 max-w-[85%] items-start w-full">
+                    <div className="h-24 w-3/4 rounded-2xl bg-muted animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ) : messages.length === 0 ? (
               <div className="flex h-[400px] flex-col items-center justify-center text-center">
                 <div className="mb-4 rounded-full bg-muted p-4">
                   <Bot className="h-8 w-8 text-muted-foreground" />
