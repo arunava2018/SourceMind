@@ -2,6 +2,12 @@
 
 import { useState } from "react"
 import { useStore } from "@/lib/store"
+import { upload } from '@vercel/blob/client'
+import * as pdfjsLib from 'pdfjs-dist'
+
+if (typeof window !== "undefined") {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 import { SourceType } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import {
@@ -35,10 +41,45 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleAddPdf = () => {
-    // Mocking file upload
-    addSource(notebookId, "Document_Upload.pdf", "pdf", { pageCount: Math.floor(Math.random() * 20) + 1 })
-    resetAndClose()
+  const handleAddPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("PDF must be strictly under 10MB")
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+    
+    try {
+      // 1. Client-side parse
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+         const page = await pdf.getPage(i);
+         const content = await page.getTextContent();
+         const strings = content.items.map((item: any) => item.str);
+         text += strings.join(' ') + '\n';
+      }
+      
+      // 2. Upload to Vercel Blob
+      const blob = await upload(file.name, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+      });
+      
+      // 3. Send to DB
+      await addSource(notebookId, file.name, "pdf", { content: text, url: blob.url });
+      resetAndClose();
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || "Failed to process PDF.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleAddVtt = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,11 +191,27 @@ export function AddSourceDialog({ notebookId }: AddSourceDialogProps) {
           <div className="mt-6 min-h-[200px]">
             {/* PDF Tab */}
             <TabsContent value="pdf" className="m-0">
-              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-10 text-center">
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 p-10 text-center relative">
                 <UploadCloud className="mb-4 h-10 w-10 text-muted-foreground" />
                 <h3 className="mb-1 font-medium">Click or drag PDF to upload</h3>
-                <p className="mb-4 text-xs text-muted-foreground">Up to 50MB per file</p>
-                <Button onClick={handleAddPdf}>Select PDF File</Button>
+                <p className="mb-4 text-xs text-muted-foreground">Up to 10MB per file</p>
+                {isSubmitting ? (
+                  <Button disabled>Processing...</Button>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      onChange={handleAddPdf}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      title="Select a PDF"
+                    />
+                    <Button type="button">Select PDF File</Button>
+                  </div>
+                )}
+                {error && (
+                  <p className="mt-4 text-sm text-destructive">{error}</p>
+                )}
               </div>
             </TabsContent>
 

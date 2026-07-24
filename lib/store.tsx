@@ -216,7 +216,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addSource = useCallback(async (notebookId: string, name: string, type: SourceType, metadata?: any) => {
     try {
-      const isApiSupportedType = type === 'text' || type === 'youtube' || type === 'url' || type === 'vtt';
+      const isApiSupportedType = type === 'text' || type === 'youtube' || type === 'url' || type === 'vtt' || type === 'pdf';
       
       if (isApiSupportedType) {
         const token = localStorage.getItem('sourcemind_token');
@@ -237,6 +237,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         let payload: any = { name, type: type.toUpperCase() };
         if (type === 'text' || type === 'vtt') {
            payload.content = metadata?.content;
+        } else if (type === 'pdf') {
+           payload.content = metadata?.content;
+           payload.url = metadata?.url;
         } else {
            payload.url = metadata?.url;
         }
