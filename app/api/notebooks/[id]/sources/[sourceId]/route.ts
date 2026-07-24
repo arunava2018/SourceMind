@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { sources } from "@/lib/db/schema";
+import { sources, notebooks } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 
@@ -25,6 +25,12 @@ export async function DELETE(
     if (!deletedSource) {
       return Response.json({ error: "Source not found" }, { status: 404 });
     }
+
+    // Update notebook updatedAt
+    const { id: notebookId } = await params;
+    await db.update(notebooks)
+      .set({ updatedAt: new Date() })
+      .where(eq(notebooks.id, notebookId));
 
     return Response.json({ success: true, source: deletedSource });
   } catch (error) {

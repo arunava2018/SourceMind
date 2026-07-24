@@ -6,6 +6,7 @@ import { addSourceSchema } from "@/lib/validations";
 import { and, eq } from "drizzle-orm";
 import { chunkText } from "@/lib/ai/chunker";
 import { generateEmbeddings } from "@/lib/ai/embedding";
+import { loadYoutubeTranscript, loadWebPage } from "@/lib/ai/loaders";
 
 export async function POST(
   request: NextRequest,
@@ -40,22 +41,38 @@ export async function POST(
 
     const data = result.data;
 
-    if (data.type !== "TEXT") {
-      return Response.json({ error: "Only TEXT sources are currently supported." }, { status: 400 });
+    if (data.type !== "TEXT" && data.type !== "YOUTUBE" && data.type !== "URL") {
+      return Response.json({ error: "Only TEXT, YOUTUBE, and URL sources are currently supported." }, { status: 400 });
     }
 
     // 1. Create the source record
     const [source] = await db.insert(sources).values({
       notebookId,
-      name: data.name || "Untitled Text Source",
-      type: "TEXT",
-      originalContent: data.content,
+      name: data.name || (data.type === "TEXT" ? "Untitled Text Source" : "Web Source"),
+      type: data.type,
+      originalContent: data.type === "TEXT" ? data.content : data.url,
       status: "INDEXING", // Instantly start indexing
     }).returning();
 
     try {
       // 2. Chunk the text
-      const chunks = await chunkText(data.content);
+      let chunks: string[] = [];
+      let fetchedTitle: string | undefined = undefined;
+      let fullText: string | undefined = undefined;
+      
+      if (data.type === "TEXT") {
+        chunks = await chunkText(data.content);
+      } else if (data.type === "YOUTUBE") {
+        const result = await loadYoutubeTranscript(data.url);
+        chunks = result.chunks;
+        fetchedTitle = result.title;
+        fullText = result.fullText;
+      } else if (data.type === "URL") {
+        const result = await loadWebPage(data.url);
+        chunks = result.chunks;
+        fetchedTitle = result.title;
+        fullText = result.fullText;
+      }
   
       // 3. Generate embeddings
       const embeddings = await generateEmbeddings(chunks);
@@ -70,11 +87,24 @@ export async function POST(
   
       await db.insert(sourceChunks).values(chunksToInsert);
   
-      // 5. Update source status to READY
+      // 5. Update source status to READY, and override name & originalContent if fetched
+      const updateData: any = { status: "READY" };
+      if (fetchedTitle) {
+        updateData.name = fetchedTitle;
+      }
+      if (fullText) {
+        updateData.originalContent = fullText;
+      }
+
       const [finalSource] = await db.update(sources)
-        .set({ status: "READY" })
+        .set(updateData)
         .where(eq(sources.id, source.id))
         .returning();
+
+      // 6. Update notebook updatedAt
+      await db.update(notebooks)
+        .set({ updatedAt: new Date() })
+        .where(eq(notebooks.id, notebookId));
 
       return Response.json({ success: true, source: finalSource }, { status: 201 });
     } catch (e) {

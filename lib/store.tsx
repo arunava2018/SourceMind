@@ -16,7 +16,7 @@ interface StoreContextType {
   getSourcesForNotebook: (notebookId: string) => Source[];
   addSource: (notebookId: string, name: string, type: SourceType, metadata?: SourceMetadata) => void;
   removeSource: (notebookId: string, id: string) => void;
-  reindexSource: (id: string) => void;
+  reindexSource: (notebookId: string, id: string) => void;
 
   messages: Message[];
   loadMessages: (notebookId: string) => Promise<void>;
@@ -144,6 +144,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
+  const touchNotebook = useCallback((notebookId: string) => {
+    setNotebooks(prev => prev.map(n => n.id === notebookId ? { ...n, updatedAt: new Date() } : n));
+  }, []);
+
   const loadMessages = useCallback(async (notebookId: string) => {
     try {
       const token = localStorage.getItem('chaibooklm_token');
@@ -202,24 +206,51 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addSource = useCallback(async (notebookId: string, name: string, type: SourceType, metadata?: any) => {
     try {
-      if (type === 'text' && metadata?.content) {
+      const isApiSupportedType = type === 'text' || type === 'youtube' || type === 'url';
+      
+      if (isApiSupportedType) {
         const token = localStorage.getItem('chaibooklm_token');
-        const res = await axios.post(`/api/notebooks/${notebookId}/sources`, {
-          name,
-          type: 'TEXT',
-          content: metadata.content
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
         
-        // Add the real source from DB, mapping createdAt string to addedAt Date
-        const dbSource = res.data.source;
-        const newSource: Source = {
-          ...dbSource,
-          type: dbSource.type.toLowerCase() as SourceType, // Ensure type is lowercase (e.g. 'text' not 'TEXT')
-          addedAt: new Date(dbSource.uploadedAt || dbSource.createdAt || new Date())
+        // Optimistic UI: Add a temporary source to show indexing status
+        const tempId = crypto.randomUUID();
+        const optimisticSource: Source = {
+          id: tempId,
+          notebookId,
+          name: name || "Adding...",
+          type,
+          status: 'indexing',
+          metadata: metadata || {},
+          addedAt: new Date()
         };
-        setSources(prev => [newSource, ...prev]);
+        setSources(prev => [optimisticSource, ...prev]);
+
+        let payload: any = { name, type: type.toUpperCase() };
+        if (type === 'text') {
+           payload.content = metadata?.content;
+        } else {
+           payload.url = metadata?.url;
+        }
+
+        try {
+          const res = await axios.post(`/api/notebooks/${notebookId}/sources`, payload, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          // Replace the temporary source with the real one from the DB
+          const dbSource = res.data.source;
+          const newSource: Source = {
+            ...dbSource,
+            type: dbSource.type.toLowerCase() as SourceType,
+            addedAt: new Date(dbSource.uploadedAt || dbSource.createdAt || new Date())
+          };
+          
+          setSources(prev => prev.map(s => s.id === tempId ? newSource : s));
+          touchNotebook(notebookId);
+        } catch (err) {
+          // On error, mark the temporary source as error
+          setSources(prev => prev.map(s => s.id === tempId ? { ...s, status: 'error' as SourceStatus } : s));
+          throw err;
+        }
         return;
       }
 
@@ -255,6 +286,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       // Optimistically remove from UI
       setSources(prev => prev.filter(s => s.id !== sourceId));
+      touchNotebook(notebookId);
 
       await axios.delete(`/api/notebooks/${notebookId}/sources/${sourceId}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -266,12 +298,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [loadSources]);
 
-  const reindexSource = useCallback((id: string) => {
+  const reindexSource = useCallback((notebookId: string, id: string) => {
     setSources(prev => prev.map(s => s.id === id ? { ...s, status: 'indexing' as SourceStatus } : s));
+    touchNotebook(notebookId);
     setTimeout(() => {
       setSources(prev => prev.map(s => s.id === id ? { ...s, status: 'ready' as SourceStatus } : s));
     }, 2000);
-  }, []);
+  }, [touchNotebook]);
 
   const getMessagesForNotebook = useCallback((notebookId: string) => {
     return messages.filter(m => m.notebookId === notebookId).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -305,6 +338,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     history.push({ role: 'user', content });
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
+    touchNotebook(notebookId);
     setIsGenerating(true);
 
     try {

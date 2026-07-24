@@ -83,6 +83,11 @@ export async function POST(
       content: userQuery,
     }).returning();
 
+    // Update notebook updatedAt
+    await db.update(notebooks)
+      .set({ updatedAt: new Date() })
+      .where(eq(notebooks.id, notebookId));
+
     // 5. Stream the response from Gemini
     const result = await streamText({
       model: google("gemini-3.5-flash"),

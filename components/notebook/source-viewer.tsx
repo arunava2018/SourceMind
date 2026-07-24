@@ -13,8 +13,8 @@ export function SourceViewer() {
 
   const { source, citation } = activeViewerSource
   
-  // Use mock content if available, otherwise fallback
-  const content = mockSourceContents[source.id] || "Content is not available for this source in the mock data. Try selecting a different citation."
+  // Use the source's original content if available, otherwise check mock data or fallback
+  const content = source.originalContent || source.content || mockSourceContents[source.id] || "Content is not available for this source. Try selecting a different citation."
 
   const getSourceIcon = () => {
     switch (source.type) {

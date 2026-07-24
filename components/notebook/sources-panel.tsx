@@ -113,7 +113,7 @@ export function SourcesPanel({ notebookId }: { notebookId: string }) {
                       <MoreVertical className="h-3 w-3" />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => reindexSource(source.id)}>
+                      <DropdownMenuItem onClick={() => reindexSource(notebookId, source.id)}>
                         <RotateCw className="mr-2 h-4 w-4" />
                         Re-index
                       </DropdownMenuItem>
