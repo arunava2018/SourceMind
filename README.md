@@ -1,150 +1,166 @@
 # SourceMind (ChaibookLM)
 
-SourceMind is an AI-powered personal knowledge base and chat assistant built heavily inspired by Google's NotebookLM. It allows users to upload various forms of unstructured data (PDFs, YouTube videos, web pages, plain text, and VTT transcripts), index them using a RAG (Retrieval-Augmented Generation) pipeline, and query them naturally using large language models.
+SourceMind is an AI-powered personal knowledge base and chat assistant, built heavily inspired by Google's NotebookLM. It allows users to upload various forms of unstructured data (PDFs, YouTube videos, web pages, plain text, and VTT transcripts), index them using a Retrieval-Augmented Generation (RAG) pipeline, and query them naturally using large language models.
 
-## 🚀 Tech Stack
+---
+
+## Tech Stack
 
 ### Frontend
+
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React_19-149ECA?style=for-the-badge&logo=react&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
+
 - **Framework**: [Next.js](https://nextjs.org/) (App Router, React 19)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 & [shadcn/ui](https://ui.shadcn.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 and [shadcn/ui](https://ui.shadcn.com/)
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Markdown Rendering**: `react-markdown` with `remark-gfm`
 
-### Backend & Database
-- **Database**: [Neon Postgres Serverless](https://neon.tech/) with `pgvector` extension
-- **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
-- **Authentication**: JWT-based custom auth (bcryptjs, jsonwebtoken)
+### Backend and Database
 
-### AI & RAG Pipeline
+![PostgreSQL](https://img.shields.io/badge/Neon_Postgres-336791?style=for-the-badge&logo=postgresql&logoColor=white)
+![Drizzle](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)
+![JWT](https://img.shields.io/badge/JWT_Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
+
+- **Database**: [Neon Postgres Serverless](https://neon.tech/) with the `pgvector` extension
+- **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
+- **Authentication**: JWT-based custom authentication (bcryptjs, jsonwebtoken)
+
+### AI and RAG Pipeline
+
+![OpenAI](https://img.shields.io/badge/OpenAI_Embeddings-412991?style=for-the-badge&logo=openai&logoColor=white)
+![Google Gemini](https://img.shields.io/badge/Gemini_1.5-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
+
 - **Generative AI SDK**: [Vercel AI SDK](https://sdk.vercel.ai/docs) (`ai`, `@ai-sdk/openai`, `@ai-sdk/google`)
 - **Embeddings**: OpenAI's `text-embedding-3-small` (1536 dimensions)
 - **Chunking**: `@langchain/textsplitters` (`TokenTextSplitter` with `cl100k_base` encoding)
 - **Data Loaders**:
   - `pdfjs-dist` (PDF parsing with page-level metadata tracking)
   - `youtube-transcript` (YouTube video transcripts)
-  - `cheerio` (Web page scraping)
+  - `cheerio` (web page scraping)
 
 ---
 
-## 🧠 RAG Pipeline Strategy
+## RAG Pipeline Strategy
 
-The system uses an advanced Retrieval-Augmented Generation strategy to ground AI responses in the user's specific source materials:
+To make the architecture easy to understand, the Retrieval-Augmented Generation (RAG) system is decoupled into two clean, directional workflows: **1. Ingestion & Indexing** and **2. Retrieval & Generation**.
+
+---
+
+### Phase 1: Ingestion & Indexing Pipeline
+When a user uploads a source, the application extracts, chunks, and vectorizes the unstructured text before persisting it to the serverless vector database.
 
 ```mermaid
-flowchart TB
-    %% Definitions
-    User([User])
-    UI[Frontend Client\nNext.js React]
-    API[Backend API\nNext.js Routes]
-    LLM[Large Language Model\nGemini 1.5 / OpenAI]
-    Embedder[OpenAI Embeddings\ntext-embedding-3-small]
-    DB[(Neon Postgres\npgvector 1536-dim)]
-
-    %% Source Ingestion Flow
-    subgraph "Ingestion & Extraction Phase"
+flowchart LR
+    subgraph Sources ["1. Source Ingestion"]
         direction TB
-        Upload[Add Source]
-        PDF[PDF Document]
-        YT[YouTube Video]
-        Web[Web URL]
-        Text[Plain Text / VTT]
-
-        Upload --> PDF
-        Upload --> YT
-        Upload --> Web
-        Upload --> Text
-
-        PDF -- "Client-side PDF.js\nExtracts Text &\nInjects [PAGE:N]" --> ExtractedText((Unified Text\nStream))
-        YT -- "youtube-transcript\nAPI Scraper" --> ExtractedText
-        Web -- "Cheerio Scraper\nStrips HTML" --> ExtractedText
-        Text -- "Raw Text" --> ExtractedText
+        PDF["📄 PDF Document\n(PDF.js + [PAGE:N] Markers)"]
+        YT["🎬 YouTube Video\n(Transcript Scraper)"]
+        Web["🌐 Web URL\n(Cheerio HTML Scraper)"]
+        Text["📝 Plain Text / VTT\n(Raw Text & Subtitles)"]
     end
 
-    %% Processing Flow
-    subgraph "Processing & Indexing Phase"
+    subgraph Processing ["2. Chunking & Embedding"]
         direction TB
-        Splitter[LangChain TokenTextSplitter\nChunk size: 512, Overlap: 50]
-        PDFChunker[PDF Specific Chunker\nRespects Page Boundaries]
-        Vectorization[Vectorization]
-
-        ExtractedText --> |If PDF| PDFChunker
-        ExtractedText --> |Other Sources| Splitter
-        
-        PDFChunker --> Vectorization
-        Splitter --> Vectorization
-        
-        Vectorization <--> |"Generate Embeddings"| Embedder
+        Splitter["✂️ TokenTextSplitter\n(512 tokens, 50 overlap)"]
+        Embedder["🧠 OpenAI Embeddings\n(text-embedding-3-small)"]
+        Splitter --> Embedder
     end
 
-    %% Storage Flow
-    subgraph "Storage Phase"
+    subgraph Storage ["3. Vector Database"]
         direction TB
-        Insert[Drizzle ORM Insert]
-        TableSources[sources Table\nMetadata & URLs]
-        TableChunks[source_chunks Table\nVectors & Page Numbers]
-        
-        Insert --> TableSources
-        Insert --> TableChunks
+        DB[("🗄️ Neon Postgres\n(pgvector 1536-dim)")]
+        Table["📊 source_chunks Table\n(Vectors + Page Metadata)"]
+        DB --- Table
     end
 
-    %% Connect Ingestion -> Storage
-    Vectorization --> Insert
-    TableChunks <--> DB
+    Sources -->|"Extract Text"| Splitter
+    Embedder -->|"Store Vectors & Pages"| Storage
 
-    %% Chat Flow
-    subgraph "Chat & Retrieval Phase"
-        direction TB
-        ChatInput[User Question]
-        QueryEmbed[Embed Question]
-        SimilaritySearch[Cosine Similarity Search\nFind Top K Chunks]
-        PromptGen[Prompt Formulation\nInject Context + Question]
-        Generation[LLM Generation]
-        
-        ChatInput --> QueryEmbed
-        QueryEmbed <--> |"Generate Embedding"| Embedder
-        QueryEmbed --> SimilaritySearch
-        SimilaritySearch <--> |"Vector Match"| DB
-        SimilaritySearch --> |"Relevant Chunks + Metadata"| PromptGen
-        PromptGen --> Generation
-        Generation <--> |"Stream Response"| LLM
-    end
+    classDef source fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef process fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87
+    classDef storage fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
 
-    %% Main interactions
-    User --> |"1. Uploads Data"| Upload
-    Insert --> |"2. Saves to DB"| DB
-    User --> |"3. Asks Question"| ChatInput
-    Generation --> |"4. Streams Answer\nWith Citations"| UI
-    UI --> User
-
-    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
-    classDef highlight fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
-    classDef db fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
-    classDef ai fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
-
-    class UI,API default;
-    class DB,TableSources,TableChunks db;
-    class LLM,Embedder,Vectorization,QueryEmbed,SimilaritySearch,PromptGen,Generation ai;
-    class PDF,YT,Web,Text,PDFChunker,Splitter highlight;
+    class PDF,YT,Web,Text source
+    class Splitter,Embedder process
+    class DB,Table storage
 ```
 
-### 1. Ingestion & Extraction
-When a user adds a new source, the backend extracts the raw text content depending on the format. For PDFs, the frontend injects `[PAGE:N]` markers to preserve exact pagination metadata during the text extraction phase.
-
-### 2. Chunking
-Using Langchain's `TokenTextSplitter`, the extracted text is intelligently chunked into overlapping segments (e.g., 512 tokens with 50-token overlap) to preserve context. For PDFs, chunks are strictly bounded by page markers so that every chunk belongs to exactly one page, enabling accurate citation metrics.
-
-### 3. Vector Embeddings
-Each chunk is run through OpenAI's `text-embedding-3-small` model to generate a high-dimensional vector representation (1536 dimensions) of its semantic meaning.
-
-### 4. Storage
-Chunks, metadata (e.g., page numbers), and vector embeddings are stored in Neon Postgres. A vector index (HNSW) is applied over the `embedding` column using cosine similarity (`vector_cosine_ops`) to optimize semantic search performance.
-
-### 5. Retrieval & Generation
-When a user asks a question in a notebook, the question is transformed into a vector and searched against the database. The top *K* most relevant chunks are retrieved and injected into the LLM's system prompt. The model streams back its response and accurately cites the relevant chunks using inline markers (e.g., `[1]`, `[2]`), which the frontend resolves into interactive citation badges.
+#### Step-by-Step Breakdown:
+1. **Multi-Modal Text Extraction**:
+   - **PDFs**: Client-side `pdfjs-dist` extracts text while injecting exact `[PAGE:N]` pagination markers so every paragraph retains page-level metadata.
+   - **YouTube Videos**: `youtube-transcript` fetches video closed captions and merges them into a unified stream.
+   - **Web URLs**: `cheerio` scrapes target webpages, stripping scripts, styles, and boilerplate HTML to isolate the core article body.
+   - **Plain Text & VTT**: Ingested directly into the processing pipeline.
+2. **Page-Bounded Chunking**:
+   - Using LangChain's `TokenTextSplitter` (`cl100k_base` encoding), text is partitioned into semantically meaningful segments of **512 tokens** with a **50-token overlap**.
+   - For PDFs, chunking is strictly bounded by page markers so that a single chunk never spans across multiple pages, guaranteeing precise citation tracking.
+3. **High-Dimensional Vectorization**:
+   - Each chunk is processed through OpenAI's `text-embedding-3-small` model to generate a **1536-dimensional vector embedding** capturing its semantic context.
+4. **Serverless Vector Storage**:
+   - Vectors, textual content, and pagination metadata (`pageNumber`, `chunkIndex`) are inserted into **Neon Postgres**. The database utilizes the `pgvector` extension with cosine distance indexing (`vector_cosine_ops`) for lightning-fast similarity lookups.
 
 ---
 
-## 🗄️ Database Schema & Dependencies
+### Phase 2: Retrieval & Grounded Generation Pipeline
+When a user asks a question inside a notebook, the application retrieves the most semantically relevant excerpts and streams back an accurately cited answer.
+
+```mermaid
+flowchart LR
+    subgraph Query ["1. User Query"]
+        direction TB
+        Input["💬 Question in Workspace"]
+        QEmbed["🔍 Embed Query\n(text-embedding-3-small)"]
+        Input --> QEmbed
+    end
+
+    subgraph Retrieval ["2. Semantic Search"]
+        direction TB
+        Search["⚡ Cosine Distance Search\n(pgvector <=> operator)"]
+        TopK["🎯 Top 5 Relevant Chunks\n(+ Page & Source Metadata)"]
+        Search --> TopK
+    end
+
+    subgraph Generation ["3. Grounded Generation"]
+        direction TB
+        Prompt["🛡️ Guardrail System Prompt\n(Strict Context Injection)"]
+        LLM["🤖 OpenAI gpt-4o\n(Vercel AI SDK Stream)"]
+        Prompt --> LLM
+    end
+
+    QEmbed -->|"Match Vectors"| Search
+    TopK -->|"Inject Context Block"| Prompt
+    LLM -->|"Stream Text + [1], [2] Citations"| Output["✨ Interactive UI\n(Citation Badges & Highlights)"]
+
+    classDef query fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12
+    classDef retrieval fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
+    classDef gen fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
+    classDef out fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87
+
+    class Input,QEmbed query
+    class Search,TopK retrieval
+    class Prompt,LLM gen
+    class Output out
+```
+
+#### Step-by-Step Breakdown:
+1. **Query Vectorization**:
+   - The user's query is converted into a 1536-dimensional vector using the exact same `text-embedding-3-small` embedding model used during ingestion.
+2. **Cosine Similarity Search**:
+   - The backend executes a Drizzle ORM SQL query using `pgvector`'s cosine distance operator (`<=>`). It scans the `source_chunks` table for the target notebook and retrieves the **Top 5 most semantically relevant chunks** (`LIMIT 5`).
+3. **Context Formatting & Guardrails**:
+   - The retrieved excerpts are assembled into a structured context block: `--- Chunk [1] (Source: ...) ---`.
+   - The system prompt enforces strict security guardrails: it prevents prompt injection, bans hallucination, forbids out-of-scope answers, and mandates citing sources using bracketed indices (`[1]`, `[2]`).
+4. **Streaming Response & Citation Resolution**:
+   - The **Vercel AI SDK** (`streamText`) streams the response from `gpt-4o` in real-time.
+   - The backend encodes the matched chunk metadata into a custom HTTP header (`x-citations`), enabling the Next.js frontend to immediately render interactive citation badges and highlight exact page references as the answer streams in.
+
+---
+
+## Database Schema and Dependencies
 
 ```mermaid
 erDiagram
@@ -200,7 +216,7 @@ erDiagram
 
 ---
 
-## 📂 Folder Structure
+## Folder Structure
 
 ```
 .
@@ -226,38 +242,45 @@ erDiagram
 
 ---
 
-## 🔌 API Endpoints
+## API Endpoints
 
 ### Authentication
-- `POST /api/auth/signup` - Register a new user
-- `POST /api/auth/login` - Authenticate and receive a JWT
-- `GET /api/auth/me` - Validate token and get current user details
+
+- `POST /api/auth/signup` — Register a new user
+- `POST /api/auth/login` — Authenticate and receive a JWT
+- `GET /api/auth/me` — Validate token and get current user details
 
 ### Notebooks
-- `GET /api/notebooks` - List all notebooks for the authenticated user
-- `POST /api/notebooks` - Create a new notebook
-- `GET /api/notebooks/[id]` - Get notebook details
-- `DELETE /api/notebooks/[id]` - Delete a notebook
+
+- `GET /api/notebooks` — List all notebooks for the authenticated user
+- `POST /api/notebooks` — Create a new notebook
+- `GET /api/notebooks/[id]` — Get notebook details
+- `DELETE /api/notebooks/[id]` — Delete a notebook
 
 ### Sources
-- `GET /api/notebooks/[id]/sources` - List all uploaded sources in a notebook
-- `POST /api/notebooks/[id]/sources` - Upload/Ingest a new source (Rate-limited to 5 per 24 hours). This triggers extraction, chunking, and vector indexing.
 
-### Chat & Messaging
-- `GET /api/notebooks/[id]/messages` - Fetch chat history for a notebook
-- `POST /api/notebooks/[id]/chat` - Submit a user query, run vector similarity search, and stream back the LLM response with citations
+- `GET /api/notebooks/[id]/sources` — List all uploaded sources in a notebook
+- `POST /api/notebooks/[id]/sources` — Upload/ingest a new source (rate-limited to 5 per 24 hours). This triggers extraction, chunking, and vector indexing.
+
+### Chat and Messaging
+
+- `GET /api/notebooks/[id]/messages` — Fetch chat history for a notebook
+- `POST /api/notebooks/[id]/chat` — Submit a user query, run vector similarity search, and stream back the LLM response with citations
 
 ---
 
-## 🛠️ Setup & Development
+## Setup and Development
 
 1. **Install Dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Environment Variables**
+
    Create a `.env` file with the following variables:
+
    ```env
    DATABASE_URL="postgresql://[user]:[password]@[neon-host]/[dbname]?sslmode=require"
    JWT_SECRET="your-secret-key"
@@ -266,12 +289,15 @@ erDiagram
    ```
 
 3. **Database Migration**
+
    ```bash
    npm run db:push
    ```
 
 4. **Run Development Server**
+
    ```bash
    npm run dev
    ```
+
    Open `http://localhost:3000` to view the application.

@@ -42,7 +42,7 @@ export async function POST(
         )
       );
 
-    if (recentSources.length >= 5) {
+    if (recentSources.length >= 10) {
       return Response.json(
         { error: "Rate limit exceeded. You can only add up to 5 sources per 24 hours." },
         { status: 429 }
