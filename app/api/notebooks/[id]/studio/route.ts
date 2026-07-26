@@ -167,33 +167,37 @@ export async function POST(
         system: systemInstruction,
         prompt: userPrompt,
         temperature,
-        schema: z.array(
-          z.object({
-            id: z.string(),
-            question: z.string(),
-            answer: z.string(),
-            source: z.string(),
-          })
-        ),
+        schema: z.object({
+          flashcards: z.array(
+            z.object({
+              id: z.string(),
+              question: z.string(),
+              answer: z.string(),
+              source: z.string(),
+            })
+          ),
+        }),
       });
-      returnData = object;
+      returnData = object.flashcards;
     } else if (type === "quiz") {
       const { object } = await generateObject({
         model: openai("gpt-4o"),
         system: systemInstruction,
         prompt: userPrompt,
         temperature,
-        schema: z.array(
-          z.object({
-            id: z.string(),
-            question: z.string(),
-            options: z.array(z.string()),
-            correctIndex: z.number(),
-            explanation: z.string(),
-          })
-        ),
+        schema: z.object({
+          questions: z.array(
+            z.object({
+              id: z.string(),
+              question: z.string(),
+              options: z.array(z.string()),
+              correctIndex: z.number(),
+              explanation: z.string(),
+            })
+          ),
+        }),
       });
-      returnData = object;
+      returnData = object.questions;
     } else {
       const { text } = await generateText({
         model: openai("gpt-4o"),

@@ -4,8 +4,8 @@ export function getStudioSystemPrompt(type: string): string {
       return `You are an expert educator and study assistant. Based exclusively on the provided Context excerpts, create 8 high-quality interactive flashcards for studying.
       
 CRITICAL OUTPUT FORMAT:
-You must respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting (no \`\`\`json or \`\`\`), explanatory text, or extra characters.
-Each object in the array must have these exact properties:
+You must respond ONLY with a valid JSON object containing a "flashcards" array.
+Each object in the "flashcards" array must have these exact properties:
 - id: a unique string identifier (e.g. "card-1", "card-2")
 - question: clear, testable question about a key concept in the text
 - answer: concise, accurate answer based on the text
@@ -15,8 +15,8 @@ Each object in the array must have these exact properties:
       return `You are an expert assessment designer. Based exclusively on the provided Context excerpts, create a 5-question multiple-choice quiz to test comprehension.
 
 CRITICAL OUTPUT FORMAT:
-You must respond ONLY with a valid JSON array of objects. Do not include markdown code block formatting (no \`\`\`json or \`\`\`), explanatory text, or extra characters.
-Each object in the array must have these exact properties:
+You must respond ONLY with a valid JSON object containing a "questions" array.
+Each object in the "questions" array must have these exact properties:
 - id: a unique string identifier (e.g. "q-1", "q-2")
 - question: the assessment question
 - options: an array of exactly 4 string choices
@@ -44,10 +44,10 @@ export function getStudioUserPrompt(
 ): string {
   switch (type) {
     case "flashcards":
-      return `Context:\n${contextString}\n\nGenerate 8 flashcards as a clean JSON array.`;
+      return `Context:\n${contextString}\n\nGenerate 8 flashcards.`;
 
     case "quiz":
-      return `Context:\n${contextString}\n\nGenerate a 5-question quiz as a clean JSON array.`;
+      return `Context:\n${contextString}\n\nGenerate a 5-question quiz.`;
 
     case "study-guide":
       return `Context:\n${contextString}\n\nPlease generate a Study Guide with the following sections:
