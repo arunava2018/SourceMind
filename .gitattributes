@@ -1,0 +1,7 @@
+
+public/* linguist-vendored
+*.min.js linguist-vendored
+*.min.mjs linguist-vendored
+
+*.config.js linguist-generated
+*.config.mjs linguist-generated
