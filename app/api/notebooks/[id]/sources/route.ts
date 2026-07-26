@@ -115,7 +115,13 @@ export async function POST(
         metadata: chunkMetadata[index] || undefined,
       }));
   
-      await db.insert(sourceChunks).values(chunksToInsert);
+      const DB_BATCH_SIZE = 100;
+      for (let i = 0; i < chunksToInsert.length; i += DB_BATCH_SIZE) {
+        const batch = chunksToInsert.slice(i, i + DB_BATCH_SIZE);
+        if (batch.length > 0) {
+          await db.insert(sourceChunks).values(batch);
+        }
+      }
   
       // 5. Update source status to READY, and override name & originalContent if fetched
       const updateData: any = { status: "READY" };

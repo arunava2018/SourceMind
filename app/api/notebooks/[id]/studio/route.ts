@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { sources, sourceChunks, notebooks, studioArtifacts, studioUsageLogs } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
 import { and, eq, inArray, gte } from "drizzle-orm";
-import { generateText } from "ai";
+import { generateText, generateObject } from "ai";
+import { z } from "zod";
 import { openai } from "@ai-sdk/openai";
 import { getStudioSystemPrompt, getStudioUserPrompt } from "@/lib/ai/studio-prompts";
 
@@ -134,10 +135,17 @@ export async function POST(
     let contextString = "No source context available.";
     if (notebookSources.length > 0) {
       const sourceIds = notebookSources.map(s => s.id);
-      const chunks = await db.query.sourceChunks.findMany({
-        where: inArray(sourceChunks.sourceId, sourceIds),
-        limit: 30, // Get up to 30 chunks for comprehensive coverage across sources
-      });
+      // Stratified / Uniform sampling across sources so all uploaded chapters/documents are represented equally
+      const perSourceLimit = Math.max(1, Math.ceil(30 / sourceIds.length));
+      let chunks: any[] = [];
+      for (const srcId of sourceIds) {
+        const srcChunks = await db.query.sourceChunks.findMany({
+          where: eq(sourceChunks.sourceId, srcId),
+          limit: perSourceLimit,
+        });
+        chunks.push(...srcChunks);
+      }
+      chunks = chunks.slice(0, 30);
 
       if (chunks.length > 0) {
         contextString = chunks.map((c, i) => {
@@ -149,32 +157,51 @@ export async function POST(
 
     const systemInstruction = getStudioSystemPrompt(type);
     const userPrompt = getStudioUserPrompt(type, contextString, { prompt, notes });
+    const temperature = type === "draft" ? 0.7 : 0.2; // 0.2 for factual study aids, 0.7 for creative drafting
 
-    const { text } = await generateText({
-      model: openai("gpt-4o"),
-      system: systemInstruction,
-      prompt: userPrompt,
-    });
+    let returnData: any;
 
-    let returnData: any = text;
-
-    if (type === "flashcards" || type === "quiz") {
-      // Clean up any potential backticks if the LLM wrapped JSON in ```json ... ```
-      let cleanedText = text.trim();
-      if (cleanedText.startsWith("```json")) {
-        cleanedText = cleanedText.replace(/^```json/, "").replace(/```$/, "").trim();
-      } else if (cleanedText.startsWith("```")) {
-        cleanedText = cleanedText.replace(/^```/, "").replace(/```$/, "").trim();
-      }
-
-      try {
-        returnData = JSON.parse(cleanedText);
-      } catch (e) {
-        console.error("Failed to parse JSON from AI studio generation:", cleanedText, e);
-        return Response.json({ 
-          error: "Failed to generate structured JSON output from AI. Please try again." 
-        }, { status: 500 });
-      }
+    if (type === "flashcards") {
+      const { object } = await generateObject({
+        model: openai("gpt-4o"),
+        system: systemInstruction,
+        prompt: userPrompt,
+        temperature,
+        schema: z.array(
+          z.object({
+            id: z.string(),
+            question: z.string(),
+            answer: z.string(),
+            source: z.string(),
+          })
+        ),
+      });
+      returnData = object;
+    } else if (type === "quiz") {
+      const { object } = await generateObject({
+        model: openai("gpt-4o"),
+        system: systemInstruction,
+        prompt: userPrompt,
+        temperature,
+        schema: z.array(
+          z.object({
+            id: z.string(),
+            question: z.string(),
+            options: z.array(z.string()),
+            correctIndex: z.number(),
+            explanation: z.string(),
+          })
+        ),
+      });
+      returnData = object;
+    } else {
+      const { text } = await generateText({
+        model: openai("gpt-4o"),
+        system: systemInstruction,
+        prompt: userPrompt,
+        temperature,
+      });
+      returnData = text;
     }
 
     // Persist artifact in database for cross-device synchronization
@@ -188,7 +215,7 @@ export async function POST(
           ),
         });
 
-        const contentToSave = (type === "flashcards" || type === "quiz") ? JSON.stringify(returnData) : text;
+        const contentToSave = (typeof returnData === "string") ? returnData : JSON.stringify(returnData);
 
         if (existing) {
           await db.update(studioArtifacts)

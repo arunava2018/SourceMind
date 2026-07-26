@@ -53,6 +53,7 @@ export async function POST(
       FROM ${sourceChunks}
       INNER JOIN ${sources} ON ${sourceChunks.sourceId} = ${sources.id}
       WHERE ${sources.notebookId} = ${notebookId}
+        AND (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) < 0.75
       ORDER BY distance ASC
       LIMIT 5
     `;
@@ -92,11 +93,15 @@ export async function POST(
       .set({ updatedAt: new Date() })
       .where(eq(notebooks.id, notebookId));
 
+    // Keep only the last 10 messages for conversation history windowing (token budgeting)
+    const prunedMessages = chatMessages.slice(-10);
+
     // 5. Stream the response from OpenAI
     const result = await streamText({
       model: openai("gpt-4o"),
       system: systemPrompt,
-      messages: chatMessages, // Send the conversation history
+      messages: prunedMessages,
+      temperature: 0.15, // Low temperature for factual precision and zero hallucination
       async onFinish({ text }) {
         // Save the Assistant message to DB
         const [savedAssistantMessage] = await db.insert(messages).values({
