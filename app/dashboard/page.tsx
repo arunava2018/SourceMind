@@ -2,7 +2,7 @@
 
 import { useStore } from "@/lib/store"
 import { useAuth } from "@/lib/auth-context"
-import { NotebookCard } from "@/components/dashboard/notebook-card"
+import { NotebookCard, NotebookCardSkeleton } from "@/components/dashboard/notebook-card"
 import { CreateNotebookDialog } from "@/components/dashboard/create-notebook-dialog"
 import { BookOpen, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,15 +11,17 @@ import Link from "next/link"
 import { useEffect } from "react"
 
 export default function DashboardPage() {
-  const { notebooks } = useStore()
+  const { notebooks, isLoadingNotebooks, fetchNotebooks } = useStore()
   const { user, logout, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
     if (!isLoading && !user) {
       router.push("/login")
+    } else if (user) {
+      fetchNotebooks()
     }
-  }, [user, isLoading, router])
+  }, [user, isLoading, router, fetchNotebooks])
 
   if (isLoading || !user) {
     return null
@@ -62,7 +64,16 @@ export default function DashboardPage() {
             <CreateNotebookDialog />
           </div>
 
-          {notebooks.length === 0 ? (
+          {isLoadingNotebooks ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <NotebookCardSkeleton />
+              <NotebookCardSkeleton />
+              <NotebookCardSkeleton />
+              <NotebookCardSkeleton />
+              <NotebookCardSkeleton />
+              <NotebookCardSkeleton />
+            </div>
+          ) : notebooks.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
               <div className="mb-4 rounded-full bg-muted p-4">
                 <BookOpen className="h-8 w-8 text-muted-foreground" />

@@ -18,7 +18,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 export default function NotebookWorkspace({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const { user, isLoading: authLoading, logout } = useAuth()
-  const { getNotebook, activeViewerSource, closeViewer, loadSources, loadMessages } = useStore()
+  const { getNotebook, activeViewerSource, closeViewer, loadSources, loadMessages, isLoadingNotebooks } = useStore()
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   const [activeTab, setActiveTab] = useState<"chat" | "studio" | "notes">("chat")
@@ -39,7 +39,7 @@ export default function NotebookWorkspace({ params }: { params: Promise<{ id: st
     }
   }, [user, authLoading, router, isMounted])
 
-  if (!isMounted || authLoading || !user) {
+  if (!isMounted || authLoading || !user || isLoadingNotebooks) {
     return null
   }
 
