@@ -1,12 +1,15 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Notebook, Source, SourceType, SourceMetadata, SourceStatus, Message, Citation } from './types';
 import { mockSources, mockMessages } from './mock-data';
+import { useAuth } from './auth-context';
 
 interface StoreContextType {
   notebooks: Notebook[];
+  isLoadingNotebooks: boolean;
+  fetchNotebooks: (force?: boolean) => Promise<void>;
   createNotebook: (title: string, description: string) => Promise<Notebook>;
   deleteNotebook: (id: string) => Promise<void>;
   getNotebook: (id: string) => Notebook | undefined;
@@ -73,39 +76,57 @@ const generateMockResponse = (query: string, sources: Source[]): { content: stri
 };
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [sources, setSources] = useState<Source[]>(mockSources);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingNotebooks, setIsLoadingNotebooks] = useState(true);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [activeViewerSource, setActiveViewerSource] = useState<{ source: Source; citation?: Citation } | null>(null);
+  const isFetchingNotebooksRef = useRef(false);
 
-  // Fetch notebooks on mount
+  const fetchNotebooks = useCallback(async (force = false) => {
+    const token = localStorage.getItem('sourcemind_token');
+    if (!token || !user) {
+      setNotebooks([]);
+      setIsLoadingNotebooks(false);
+      return;
+    }
+    if (isFetchingNotebooksRef.current && !force) {
+      return;
+    }
+    isFetchingNotebooksRef.current = true;
+    setIsLoadingNotebooks(true);
+    try {
+      const res = await axios.get('/api/notebooks', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const fetchedNotebooks = res.data.notebooks.map((n: any) => ({
+        ...n,
+        createdAt: new Date(n.createdAt),
+        updatedAt: new Date(n.updatedAt)
+      }));
+      
+      setNotebooks(fetchedNotebooks);
+    } catch (error) {
+      console.error("Failed to fetch notebooks", error);
+    } finally {
+      setIsLoadingNotebooks(false);
+      isFetchingNotebooksRef.current = false;
+    }
+  }, [user]);
+
   useEffect(() => {
-    const fetchNotebooks = async () => {
-      try {
-        const token = localStorage.getItem('sourcemind_token');
-        if (!token) return;
-        
-        const res = await axios.get('/api/notebooks', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        // Ensure dates are parsed back to Date objects
-        const fetchedNotebooks = res.data.notebooks.map((n: any) => ({
-          ...n,
-          createdAt: new Date(n.createdAt),
-          updatedAt: new Date(n.updatedAt)
-        }));
-        
-        setNotebooks(fetchedNotebooks);
-      } catch (error) {
-        console.error("Failed to fetch notebooks", error);
-      }
-    };
-    fetchNotebooks();
-  }, []);
+    if (user) {
+      fetchNotebooks();
+    } else {
+      setNotebooks([]);
+      setIsLoadingNotebooks(false);
+    }
+  }, [user, fetchNotebooks]);
 
   const getNotebook = useCallback((id: string) => {
     return notebooks.find(n => n.id === id);
@@ -428,6 +449,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <StoreContext.Provider value={{
       notebooks,
+      isLoadingNotebooks,
+      fetchNotebooks,
       createNotebook,
       deleteNotebook,
       getNotebook,

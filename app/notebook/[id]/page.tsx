@@ -6,8 +6,10 @@ import { notFound, useRouter } from "next/navigation"
 import { useEffect, useState, use } from "react"
 import { SourcesPanel } from "@/components/notebook/sources-panel"
 import { ChatPanel } from "@/components/notebook/chat-panel"
+import { StudioPanel } from "@/components/notebook/studio-panel"
+import { NotesPanel } from "@/components/notebook/notes-panel"
 import { SourceViewer } from "@/components/notebook/source-viewer"
-import { BookOpen, LogOut, ChevronLeft, Menu, PanelRightClose } from "lucide-react"
+import { BookOpen, LogOut, ChevronLeft, Menu, PanelRightClose, Sparkles, BookmarkPlus, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -19,6 +21,7 @@ export default function NotebookWorkspace({ params }: { params: Promise<{ id: st
   const { getNotebook, activeViewerSource, closeViewer, loadSources, loadMessages } = useStore()
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
+  const [activeTab, setActiveTab] = useState<"chat" | "studio" | "notes">("chat")
 
   const notebook = getNotebook(id)
 
@@ -98,9 +101,46 @@ export default function NotebookWorkspace({ params }: { params: Promise<{ id: st
           <SourcesPanel notebookId={notebook.id} />
         </div>
 
-        {/* Center Panel: Chat */}
-        <div className="flex min-w-0 flex-1 flex-col h-full relative">
-          <ChatPanel notebookId={notebook.id} />
+        {/* Center Panel: Chat / Studio / Notes */}
+        <div className="flex min-w-0 flex-1 flex-col h-full relative overflow-hidden">
+          {/* Tab Navigation */}
+          <div className="flex items-center justify-center border-b bg-card/60 px-4 py-2 shrink-0 z-10">
+            <div className="flex rounded-xl bg-muted p-1 gap-1 border border-border/50">
+              <button
+                onClick={() => setActiveTab("chat")}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === "chat" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                Chat Assistant
+              </button>
+              <button
+                onClick={() => setActiveTab("studio")}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === "studio" ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                Studio & Generators
+              </button>
+              <button
+                onClick={() => setActiveTab("notes")}
+                className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                  activeTab === "notes" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <BookmarkPlus className="h-3.5 w-3.5" />
+                Pinned Notes
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden relative">
+            {activeTab === "chat" && <ChatPanel notebookId={notebook.id} />}
+            {activeTab === "studio" && <StudioPanel notebookId={notebook.id} />}
+            {activeTab === "notes" && <NotesPanel notebookId={notebook.id} />}
+          </div>
         </div>
 
         {/* Right Panel: Source Viewer (Desktop) */}

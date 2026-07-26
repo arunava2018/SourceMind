@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useStore } from "@/lib/store"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface NotebookCardProps {
   notebook: Notebook;
@@ -54,6 +55,28 @@ export function NotebookCard({ notebook }: NotebookCardProps) {
         <div>
           Updated {formatDistanceToNow(notebook.updatedAt, { addSuffix: true })}
         </div>
+      </CardFooter>
+    </Card>
+  )
+}
+
+export function NotebookCardSkeleton() {
+  return (
+    <Card className="flex flex-col transition-colors">
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="flex items-center gap-2 w-full">
+          <Skeleton className="h-5 w-5 rounded-full" />
+          <Skeleton className="h-5 w-3/5 rounded-md" />
+        </div>
+        <Skeleton className="h-8 w-8 rounded-md" />
+      </CardHeader>
+      <CardContent className="flex-1 pb-4">
+        <Skeleton className="mt-2 h-4 w-full rounded-md" />
+        <Skeleton className="mt-1.5 h-4 w-4/5 rounded-md" />
+      </CardContent>
+      <CardFooter className="flex items-center justify-between border-t pt-4 text-xs text-muted-foreground">
+        <Skeleton className="h-3 w-16 rounded-md" />
+        <Skeleton className="h-3 w-24 rounded-md" />
       </CardFooter>
     </Card>
   )

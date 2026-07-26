@@ -106,18 +106,42 @@ export async function POST(
           content: text,
         }).returning();
 
-        // Save citations (mapping [1], [2] to the actual chunk)
-        if (similarChunks.length > 0) {
-          const citationsToInsert = similarChunks.map((chunk: any, index: number) => ({
-            messageId: savedAssistantMessage.id,
-            sourceId: chunk.sourceId,
-            sourceChunkId: chunk.id,
-            chunkText: chunk.content,
-            chunkIndex: chunk.chunkIndex,
-            metadata: { citationNumber: index + 1 }
-          }));
+        // Check if AI response is a refusal / lack of context statement
+        const lowerText = text.toLowerCase();
+        const isRefusal = lowerText.includes("not have enough information") ||
+                          lowerText.includes("don't have enough information") ||
+                          lowerText.includes("not have enough context") ||
+                          lowerText.includes("don't have enough context") ||
+                          lowerText.includes("no relevant context") ||
+                          lowerText.includes("cannot be reasonably deduced") ||
+                          lowerText.includes("insufficient information") ||
+                          lowerText.includes("no information found") ||
+                          lowerText.includes("cannot answer this question") ||
+                          lowerText.includes("couldn't find any");
 
-          await db.insert(messageCitations).values(citationsToInsert);
+        // Save citations (mapping [1], [2] to the actual chunk) only if it's not a refusal
+        if (!isRefusal && similarChunks.length > 0) {
+          // Filter to chunks actually referenced in text (e.g. [1], [2]) if brackets are present
+          const hasBrackets = similarChunks.some((_: any, idx: number) => text.includes(`[${idx + 1}]`));
+          const activeChunks = hasBrackets
+            ? similarChunks.filter((_: any, idx: number) => text.includes(`[${idx + 1}]`))
+            : similarChunks;
+
+          if (activeChunks.length > 0) {
+            const citationsToInsert = activeChunks.map((chunk: any) => {
+              const origIdx = similarChunks.indexOf(chunk);
+              return {
+                messageId: savedAssistantMessage.id,
+                sourceId: chunk.sourceId,
+                sourceChunkId: chunk.id,
+                chunkText: chunk.content,
+                chunkIndex: chunk.chunkIndex,
+                metadata: { citationNumber: origIdx + 1 }
+              };
+            });
+
+            await db.insert(messageCitations).values(citationsToInsert);
+          }
         }
       }
     });

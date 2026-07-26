@@ -1,183 +1,118 @@
 # SourceMind (ChaibookLM)
 
-SourceMind is an AI-powered personal knowledge base and chat assistant, built heavily inspired by Google's NotebookLM. It allows users to upload various forms of unstructured data (PDFs, YouTube videos, web pages, plain text, and VTT transcripts), index them using a Retrieval-Augmented Generation (RAG) pipeline, and query them naturally using large language models.
+SourceMind is an enterprise-grade AI personal knowledge base, Notebook Studio, and grounded chat assistant, heavily inspired by Google's NotebookLM. It allows users to upload unstructured data (PDFs, YouTube videos, web pages, plain text, and VTT transcripts), index them via a multi-modal Retrieval-Augmented Generation (RAG) pipeline, synthesize interactive learning artifacts, and draft documents with real-time cloud synchronization.
 
 ---
 
-## Tech Stack
+## 🌟 Key Features
+
+### 1. 💬 Grounded AI Assistant with Interactive Citations
+- **Semantic Retrieval**: Queries are vectorized and matched against high-dimensional embeddings using PostgreSQL `pgvector`.
+- **Zero Hallucination Guardrails**: Strict refusal detection prevents citing sources when context is insufficient.
+- **Interactive Citations**: Hovering or clicking bracketed citations (`[1]`, `[2]`) highlights exact excerpts and page numbers in the split-screen source viewer.
+
+### 2. ✨ Notebook Studio & AI Generators
+Transform your unstructured sources into testable study aids and strategic briefings with one click:
+- **Interactive 3D Flashcards**: Flip animation deck with progress tracking ("Mastered" vs "Need Practice") and reshuffling controls.
+- **Self-Assessment Quiz**: 5-question multiple-choice interactive quiz player with instant visual feedback and comprehensive explanation reveals.
+- **Study Guide & FAQ**: Auto-generates structured executive summaries, core definitions, and top FAQs.
+- **Executive Briefing**: Synthesizes high-level strategic takeaways and actionable insights.
+
+### 3. 📝 Pinned Notes & AI Drafting Assistant
+- **Cloud-Synchronized Scratchpad**: Pin AI responses or create custom notes. Synchronized across devices via PostgreSQL and Drizzle ORM with optimistic local caching.
+- **AI Drafting Assistant**: Select pinned notes and choose a drafting template (**Blog Post**, **Analytical Report**, **Email Summary**, or **Custom Prompt**) to synthesize polished documents.
+
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
-
-![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)
 ![React](https://img.shields.io/badge/React_19-149ECA?style=for-the-badge&logo=react&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![shadcn/ui](https://img.shields.io/badge/shadcn%2Fui-000000?style=for-the-badge&logo=shadcnui&logoColor=white)
+![Axios](https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white)
 
-- **Framework**: [Next.js](https://nextjs.org/) (App Router, React 19)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) v4 and [shadcn/ui](https://ui.shadcn.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **Markdown Rendering**: `react-markdown` with `remark-gfm`
+- **Framework**: [Next.js](https://nextjs.org/) 16 (App Router, Turbopack, React 19)
+- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
+- **API Fetching**: `axios` with custom JWT Bearer interception
+- **Markdown & Code**: `react-markdown` with `remark-gfm`
 
 ### Backend and Database
-
 ![PostgreSQL](https://img.shields.io/badge/Neon_Postgres-336791?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Drizzle](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)
 ![JWT](https://img.shields.io/badge/JWT_Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 
-- **Database**: [Neon Postgres Serverless](https://neon.tech/) with the `pgvector` extension
+- **Database**: [Neon Postgres Serverless](https://neon.tech/) with `pgvector`
 - **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
 - **Authentication**: JWT-based custom authentication (bcryptjs, jsonwebtoken)
 
 ### AI and RAG Pipeline
-
-![OpenAI](https://img.shields.io/badge/OpenAI_Embeddings-412991?style=for-the-badge&logo=openai&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Gemini_1.5-4285F4?style=for-the-badge&logo=googlegemini&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI_gpt--4o-412991?style=for-the-badge&logo=openai&logoColor=white)
 ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
 
 - **Generative AI SDK**: [Vercel AI SDK](https://sdk.vercel.ai/docs) (`ai`, `@ai-sdk/openai`, `@ai-sdk/google`)
 - **Embeddings**: OpenAI's `text-embedding-3-small` (1536 dimensions)
 - **Chunking**: `@langchain/textsplitters` (`TokenTextSplitter` with `cl100k_base` encoding)
-- **Data Loaders**:
-  - `pdfjs-dist` (PDF parsing with page-level metadata tracking)
-  - `youtube-transcript` (YouTube video transcripts)
-  - `cheerio` (web page scraping)
+- **Data Loaders**: `pdfjs-dist`, `youtube-transcript`, `cheerio`
 
 ---
 
-## RAG Pipeline Strategy
-
-To make the architecture easy to understand, the Retrieval-Augmented Generation (RAG) system is decoupled into two clean, directional workflows: **1. Ingestion & Indexing** and **2. Retrieval & Generation**.
-
----
-
-### Phase 1: Ingestion & Indexing Pipeline
-When a user uploads a source, the application extracts, chunks, and vectorizes the unstructured text before persisting it to the serverless vector database.
+## 🏗️ RAG & Studio Architecture
 
 ```mermaid
 flowchart LR
-    subgraph Sources ["1. Source Ingestion"]
+    subgraph Sources ["1. Ingestion & Indexing"]
         direction TB
-        PDF["📄 PDF Document\n(PDF.js + [PAGE:N] Markers)"]
-        YT["🎬 YouTube Video\n(Transcript Scraper)"]
-        Web["🌐 Web URL\n(Cheerio HTML Scraper)"]
-        Text["📝 Plain Text / VTT\n(Raw Text & Subtitles)"]
-    end
-
-    subgraph Processing ["2. Chunking & Embedding"]
-        direction TB
+        PDF["📄 PDF / YT / Web / VTT"]
         Splitter["✂️ TokenTextSplitter\n(512 tokens, 50 overlap)"]
         Embedder["🧠 OpenAI Embeddings\n(text-embedding-3-small)"]
-        Splitter --> Embedder
+        PDF --> Splitter --> Embedder
     end
 
-    subgraph Storage ["3. Vector Database"]
+    subgraph Storage ["2. PostgreSQL Cloud DB"]
         direction TB
-        DB[("🗄️ Neon Postgres\n(pgvector 1536-dim)")]
-        Table["📊 source_chunks Table\n(Vectors + Page Metadata)"]
-        DB --- Table
+        DB[("🗄️ Neon Postgres Serverless")]
+        Table["📊 source_chunks\n(pgvector 1536-dim)"]
+        NotesTable["📝 notes & studio_artifacts\n(Cross-Device Sync)"]
+        DB --- Table & NotesTable
     end
 
-    Sources -->|"Extract Text"| Splitter
-    Embedder -->|"Store Vectors & Pages"| Storage
+    subgraph Studio ["3. Grounded Synthesis & Studio"]
+        direction TB
+        Prompts["🎯 Centralized Studio Prompts\n(lib/ai/studio-prompts.ts)"]
+        LLM["🤖 OpenAI gpt-4o\n(Vercel AI SDK Stream / JSON)"]
+        Prompts --> LLM
+    end
 
-    classDef source fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
-    classDef process fill:#f3e8ff,stroke:#9333ea,stroke-width:2px,color:#581c87
-    classDef storage fill:#dcfce7,stroke:#16a34a,stroke-width:2px,color:#14532d
-
-    class PDF,YT,Web,Text source
-    class Splitter,Embedder process
-    class DB,Table storage
+    Embedder -->|"Store Vectors & Chunks"| Storage
+    Storage -->|"Sample Up to 30 Chunks"| Studio
+    LLM -->|"Persist Generated Assets"| NotesTable
 ```
-
-#### Step-by-Step Breakdown:
-1. **Multi-Modal Text Extraction**:
-   - **PDFs**: Client-side `pdfjs-dist` extracts text while injecting exact `[PAGE:N]` pagination markers so every paragraph retains page-level metadata.
-   - **YouTube Videos**: `youtube-transcript` fetches video closed captions and merges them into a unified stream.
-   - **Web URLs**: `cheerio` scrapes target webpages, stripping scripts, styles, and boilerplate HTML to isolate the core article body.
-   - **Plain Text & VTT**: Ingested directly into the processing pipeline.
-2. **Page-Bounded Chunking**:
-   - Using LangChain's `TokenTextSplitter` (`cl100k_base` encoding), text is partitioned into semantically meaningful segments of **512 tokens** with a **50-token overlap**.
-   - For PDFs, chunking is strictly bounded by page markers so that a single chunk never spans across multiple pages, guaranteeing precise citation tracking.
-3. **High-Dimensional Vectorization**:
-   - Each chunk is processed through OpenAI's `text-embedding-3-small` model to generate a **1536-dimensional vector embedding** capturing its semantic context.
-4. **Serverless Vector Storage**:
-   - Vectors, textual content, and pagination metadata (`pageNumber`, `chunkIndex`) are inserted into **Neon Postgres**. The database utilizes the `pgvector` extension with cosine distance indexing (`vector_cosine_ops`) for lightning-fast similarity lookups.
 
 ---
 
-### Phase 2: Retrieval & Grounded Generation Pipeline
-When a user asks a question inside a notebook, the application retrieves the most semantically relevant excerpts and streams back an accurately cited answer.
+## 🗄️ Database Schema (ER Diagram)
 
-```mermaid
-flowchart LR
-    subgraph Query ["1. User Query"]
-        direction TB
-        Input["💬 Question in Workspace"]
-        QEmbed["🔍 Embed Query\n(text-embedding-3-small)"]
-        Input --> QEmbed
-    end
-
-    subgraph Retrieval ["2. Semantic Search"]
-        direction TB
-        Search["⚡ Cosine Distance Search\n(pgvector <=> operator)"]
-        TopK["🎯 Top 5 Relevant Chunks\n(+ Page & Source Metadata)"]
-        Search --> TopK
-    end
-
-    subgraph Generation ["3. Grounded Generation"]
-        direction TB
-        Prompt["🛡️ Guardrail System Prompt\n(Strict Context Injection)"]
-        LLM["🤖 OpenAI gpt-4o\n(Vercel AI SDK Stream)"]
-        Prompt --> LLM
-    end
-
-    QEmbed -->|"Match Vectors"| Search
-    TopK -->|"Inject Context Block"| Prompt
-    LLM -->|"Stream Text + [1], [2] Citations"| Output["✨ Interactive UI\n(Citation Badges & Highlights)"]
-
-    classDef query fill:#fff7ed,stroke:#ea580c,stroke-width:2px,color:#7c2d12
-    classDef retrieval fill:#e0f2fe,stroke:#0284c7,stroke-width:2px,color:#0c4a6e
-    classDef gen fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#14532d
-    classDef out fill:#faf5ff,stroke:#9333ea,stroke-width:2px,color:#581c87
-
-    class Input,QEmbed query
-    class Search,TopK retrieval
-    class Prompt,LLM gen
-    class Output out
-```
-
-#### Step-by-Step Breakdown:
-1. **Query Vectorization**:
-   - The user's query is converted into a 1536-dimensional vector using the exact same `text-embedding-3-small` embedding model used during ingestion.
-2. **Cosine Similarity Search**:
-   - The backend executes a Drizzle ORM SQL query using `pgvector`'s cosine distance operator (`<=>`). It scans the `source_chunks` table for the target notebook and retrieves the **Top 5 most semantically relevant chunks** (`LIMIT 5`).
-3. **Context Formatting & Guardrails**:
-   - The retrieved excerpts are assembled into a structured context block: `--- Chunk [1] (Source: ...) ---`.
-   - The system prompt enforces strict security guardrails: it prevents prompt injection, bans hallucination, forbids out-of-scope answers, and mandates citing sources using bracketed indices (`[1]`, `[2]`).
-4. **Streaming Response & Citation Resolution**:
-   - The **Vercel AI SDK** (`streamText`) streams the response from `gpt-4o` in real-time.
-   - The backend encodes the matched chunk metadata into a custom HTTP header (`x-citations`), enabling the Next.js frontend to immediately render interactive citation badges and highlight exact page references as the answer streams in.
-
----
-
-## Database Schema and Dependencies
+All user notes, flashcard decks, quizzes, and chat messages are persisted in PostgreSQL using Drizzle ORM, ensuring 100% cloud accessibility across devices.
 
 ```mermaid
 erDiagram
     users ||--o{ notebooks : "creates"
     users ||--o{ messages : "sends"
+    users ||--o{ notes : "pins"
+    users ||--o{ studio_artifacts : "generates"
     notebooks ||--o{ sources : "contains"
     notebooks ||--o{ messages : "has"
+    notebooks ||--o{ notes : "holds"
+    notebooks ||--o{ studio_artifacts : "stores"
     sources ||--o{ source_chunks : "split into"
     sources ||--o{ message_citations : "cited in"
     messages ||--o{ message_citations : "includes"
-    source_chunks ||--o{ message_citations : "referenced by"
 
     users {
         uuid id PK
         varchar name
         varchar email
-        text passwordHash
     }
     notebooks {
         uuid id PK
@@ -188,7 +123,6 @@ erDiagram
         uuid id PK
         uuid notebook_id FK
         source_type type
-        text originalContent
         varchar url
     }
     source_chunks {
@@ -196,108 +130,108 @@ erDiagram
         uuid source_id FK
         vector embedding
         text content
-        json metadata
     }
-    messages {
+    notes {
         uuid id PK
         uuid notebook_id FK
         uuid user_id FK
-        message_role role
+        varchar title
         text content
     }
-    message_citations {
+    studio_artifacts {
         uuid id PK
-        uuid message_id FK
-        uuid source_id FK
-        uuid source_chunk_id FK
-        text chunkText
+        uuid notebook_id FK
+        uuid user_id FK
+        varchar type
+        text content
     }
 ```
 
 ---
 
-## Folder Structure
+## 📁 Folder Structure
 
 ```
 .
 ├── app/
-│   ├── api/                  # Next.js API Route Handlers (Backend)
-│   │   ├── auth/             # Login, Signup, and Me routes
-│   │   └── notebooks/        # Notebook CRUD, Sources, and Chat endpoints
-│   ├── dashboard/            # Dashboard UI for managing notebooks
-│   ├── login/                # Authentication pages
-│   ├── signup/               # Authentication pages
-│   └── notebook/[id]/        # Main workspace (Chat interface & Source Viewer)
+│   ├── api/                      # Next.js API Route Handlers (Backend)
+│   │   ├── auth/                 # Login, Signup, and Me routes
+│   │   └── notebooks/            # Notebook CRUD endpoints
+│   │       ├── [id]/chat/        # RAG Chat & Streaming Citations
+│   │       ├── [id]/sources/     # Multi-Modal Source Ingestion
+│   │       ├── [id]/studio/      # Studio Generators & DB Persistence
+│   │       └── [id]/notes/       # Cloud-Synchronized Pinned Notes CRUD
+│   ├── dashboard/                # Dashboard UI for managing notebooks
+│   ├── login/ & signup/          # Authentication pages
+│   └── notebook/[id]/            # Main Workspace (Chat, Studio, Notes, Viewer tabs)
 ├── components/
-│   ├── notebook/             # Complex UI features (ChatPanel, SourceViewer, AddSourceDialog)
-│   └── ui/                   # Reusable shadcn components
+│   ├── notebook/                 # Core Workspace UI components
+│   │   ├── chat-panel.tsx        # Grounded Chat with Auto-Scroll & Citations
+│   │   ├── studio-panel.tsx      # Hub, 3D Flashcards, Quiz Player, Study Guides
+│   │   ├── notes-panel.tsx       # Pinned Notes Scratchpad & AI Drafting Assistant
+│   │   └── source-viewer.tsx     # Split-screen highlighter & source inspector
+│   └── ui/                       # Reusable shadcn/ui components
 ├── lib/
-│   ├── ai/                   # RAG logic (chunker.ts, embedding.ts, loaders.ts)
-│   ├── db/                   # Database connection and Drizzle schema (schema.ts)
-│   ├── auth.ts               # JWT utilities
-│   ├── store.tsx             # React Context for global state management
-│   └── types.ts              # Global TypeScript interfaces
-└── public/                   # Static assets (including pdf.worker.min.mjs)
+│   ├── ai/                       # RAG & Prompt engineering modules
+│   │   ├── studio-prompts.ts     # Decoupled prompt generator for Studio & Drafting
+│   │   ├── chunker.ts            # LangChain token splitter
+│   │   └── loaders.ts            # PDF, YouTube, and HTML scrapers
+│   ├── db/                       # Neon Serverless connection & Drizzle ORM schema
+│   ├── notes-util.ts             # Axios DB sync & optimistic localStorage fallback
+│   ├── auth.ts                   # JWT utilities
+│   └── store.tsx                 # Global React Context store (Axios integrated)
+└── public/                       # Static assets (PDF.js worker, icons)
 ```
 
 ---
 
-## API Endpoints
+## 🔌 API Endpoints
 
 ### Authentication
+- `POST /api/auth/signup` — Register a new account
+- `POST /api/auth/login` — Authenticate and receive a JWT Bearer token
+- `GET /api/auth/me` — Validate token and return user profile
 
-- `POST /api/auth/signup` — Register a new user
-- `POST /api/auth/login` — Authenticate and receive a JWT
-- `GET /api/auth/me` — Validate token and get current user details
+### Notebooks & Sources
+- `GET/POST /api/notebooks` — List or create notebooks
+- `GET/POST /api/notebooks/[id]/sources` — List or ingest multi-modal sources (triggers chunking & vector indexing)
 
-### Notebooks
+### Chat & Studio
+- `POST /api/notebooks/[id]/chat` — Submit query, run cosine similarity search, stream LLM response with citations
+- `GET /api/notebooks/[id]/studio` — Retrieve saved Studio artifacts (Flashcards, Quizzes, Briefings) from PostgreSQL
+- `POST /api/notebooks/[id]/studio` — Sample 30 source chunks, generate asset via `gpt-4o`, and automatically persist to DB
 
-- `GET /api/notebooks` — List all notebooks for the authenticated user
-- `POST /api/notebooks` — Create a new notebook
-- `GET /api/notebooks/[id]` — Get notebook details
-- `DELETE /api/notebooks/[id]` — Delete a notebook
-
-### Sources
-
-- `GET /api/notebooks/[id]/sources` — List all uploaded sources in a notebook
-- `POST /api/notebooks/[id]/sources` — Upload/ingest a new source (rate-limited to 5 per 24 hours). This triggers extraction, chunking, and vector indexing.
-
-### Chat and Messaging
-
-- `GET /api/notebooks/[id]/messages` — Fetch chat history for a notebook
-- `POST /api/notebooks/[id]/chat` — Submit a user query, run vector similarity search, and stream back the LLM response with citations
+### Cloud Notes
+- `GET/POST /api/notebooks/[id]/notes` — Fetch all pinned notes or create a new cloud note
+- `PATCH/DELETE /api/notebooks/[id]/notes/[noteId]` — Update note content/title or delete a note
 
 ---
 
-## Setup and Development
+## 🚀 Setup and Development
 
 1. **Install Dependencies**
-
    ```bash
    npm install
    ```
 
 2. **Environment Variables**
-
-   Create a `.env` file with the following variables:
-
+   Create a `.env` file in the root directory:
    ```env
    DATABASE_URL="postgresql://[user]:[password]@[neon-host]/[dbname]?sslmode=require"
-   JWT_SECRET="your-secret-key"
+   JWT_SECRET="your-256-bit-secret-key"
    OPENAI_API_KEY="sk-..."
    GOOGLE_GENERATIVE_AI_API_KEY="AIza..."
    ```
 
 3. **Database Migration**
-
+   Push the Drizzle ORM schema (including vector indexes and studio tables) to Neon Postgres:
    ```bash
    npm run db:push
    ```
 
 4. **Run Development Server**
-
+   Start the Next.js 16 server in Turbopack mode:
    ```bash
    npm run dev
    ```
-
-   Open `http://localhost:3000` to view the application.
+   Open `http://localhost:3000` to experience SourceMind.

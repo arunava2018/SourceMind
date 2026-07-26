@@ -52,6 +52,8 @@ export const users = pgTable("users", {
 export const usersRelations = relations(users, ({ many }) => ({
   notebooks: many(notebooks),
   messages: many(messages),
+  notes: many(notes),
+  studioArtifacts: many(studioArtifacts),
 }));
 
 // ─── Notebooks ──────────────────────────────────────────────────────────────────
@@ -83,6 +85,8 @@ export const notebooksRelations = relations(notebooks, ({ one, many }) => ({
   }),
   sources: many(sources),
   messages: many(messages),
+  notes: many(notes),
+  studioArtifacts: many(studioArtifacts),
 }));
 
 // ─── Sources ────────────────────────────────────────────────────────────────────
@@ -246,3 +250,83 @@ export const messageCitationsRelations = relations(
     }),
   }),
 );
+
+// ─── Pinned Notes ───────────────────────────────────────────────────────────────
+
+export const notes = pgTable(
+  "notes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notebookId: uuid("notebook_id")
+      .notNull()
+      .references(() => notebooks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 255 }),
+    content: text("content").notNull(),
+    source: varchar("source", { length: 255 }),
+    author: varchar("author", { length: 255 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("notes_notebook_id_idx").on(table.notebookId),
+    index("notes_user_id_idx").on(table.userId),
+  ],
+);
+
+export const notesRelations = relations(notes, ({ one }) => ({
+  notebook: one(notebooks, {
+    fields: [notes.notebookId],
+    references: [notebooks.id],
+  }),
+  user: one(users, {
+    fields: [notes.userId],
+    references: [users.id],
+  }),
+}));
+
+// ─── Studio Artifacts ───────────────────────────────────────────────────────────
+
+export const studioArtifacts = pgTable(
+  "studio_artifacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    notebookId: uuid("notebook_id")
+      .notNull()
+      .references(() => notebooks.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 50 }).notNull(), // 'flashcards', 'quiz', 'study-guide', 'briefing'
+    content: text("content").notNull(), // JSON string or Markdown text
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    index("studio_artifacts_notebook_id_idx").on(table.notebookId),
+    index("studio_artifacts_notebook_type_idx").on(table.notebookId, table.type),
+  ],
+);
+
+export const studioArtifactsRelations = relations(studioArtifacts, ({ one }) => ({
+  notebook: one(notebooks, {
+    fields: [studioArtifacts.notebookId],
+    references: [notebooks.id],
+  }),
+  user: one(users, {
+    fields: [studioArtifacts.userId],
+    references: [users.id],
+  }),
+}));
