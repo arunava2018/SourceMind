@@ -57,7 +57,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { title, content, source, author } = body;
+    const { id, title, content, source, author } = body;
 
     if (!content) {
       return Response.json({ error: "Content is required" }, { status: 400 });
@@ -66,6 +66,7 @@ export async function POST(
     const [newNote] = await db
       .insert(notes)
       .values({
+        id: id || undefined,
         notebookId,
         userId: authPayload.userId,
         title: title || null,

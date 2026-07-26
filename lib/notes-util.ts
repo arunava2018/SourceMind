@@ -90,7 +90,7 @@ export function pinNoteToStorage(
     axios
       .post(
         `/api/notebooks/${notebookId}/notes`,
-        { title, content, source, author: author || "AI Assistant" },
+        { id: tempId, title, content, source, author: author || "AI Assistant" },
         { headers: { Authorization: `Bearer ${token}` } }
       )
       .then((res) => {

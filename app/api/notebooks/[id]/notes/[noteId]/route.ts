@@ -68,12 +68,12 @@ export async function DELETE(
     });
 
     if (!note) {
-      return Response.json({ error: "Note not found" }, { status: 404 });
+      return Response.json({ success: true, deleted: false });
     }
 
     await db.delete(notes).where(eq(notes.id, noteId));
 
-    return Response.json({ success: true });
+    return Response.json({ success: true, deleted: true });
   } catch (error) {
     console.error("Error deleting note:", error);
     return Response.json({ error: "Failed to delete note" }, { status: 500 });
