@@ -54,6 +54,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   messages: many(messages),
   notes: many(notes),
   studioArtifacts: many(studioArtifacts),
+  studioUsageLogs: many(studioUsageLogs),
 }));
 
 // ─── Notebooks ──────────────────────────────────────────────────────────────────
@@ -327,6 +328,29 @@ export const studioArtifactsRelations = relations(studioArtifacts, ({ one }) => 
   }),
   user: one(users, {
     fields: [studioArtifacts.userId],
+    references: [users.id],
+  }),
+}));
+
+// ─── Studio Usage Logs (Rate Limiting) ──────────────────────────────────────────
+
+export const studioUsageLogs = pgTable(
+  "studio_usage_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("studio_usage_logs_user_id_idx").on(table.userId)],
+);
+
+export const studioUsageLogsRelations = relations(studioUsageLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [studioUsageLogs.userId],
     references: [users.id],
   }),
 }));

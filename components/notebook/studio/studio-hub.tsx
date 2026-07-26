@@ -9,6 +9,7 @@ interface StudioHubProps {
   studioData: StudioState;
   loadingType: string | null;
   error: string | null;
+  usage: { used: number; limit: number } | null;
   onSelectView: (view: StudioViewType) => void;
   onGenerate: (type: "flashcards" | "quiz" | "study-guide" | "briefing") => void;
 }
@@ -17,6 +18,7 @@ export function StudioHub({
   studioData,
   loadingType,
   error,
+  usage,
   onSelectView,
   onGenerate,
 }: StudioHubProps) {
@@ -32,6 +34,27 @@ export function StudioHub({
           <p className="mt-2 text-sm text-muted-foreground max-w-2xl">
             Transform your uploaded sources into structured study assets, executive briefings, and interactive self-assessments with a single click.
           </p>
+        </div>
+
+        {/* Rate Limit Disclaimer & Usage Banner */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs sm:text-sm text-muted-foreground shadow-sm">
+          <div className="flex items-start sm:items-center gap-2.5">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold">
+              ⚡
+            </span>
+            <div>
+              <span className="font-semibold text-foreground">AI Credits Conservation Notice: </span>
+              To conserve OpenAI generation credits, artifact generation is limited to <strong className="text-foreground">10 items per day</strong> per user.
+            </div>
+          </div>
+          {usage && (
+            <div className="shrink-0 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-xl border text-xs font-semibold">
+              <span>Today's Usage:</span>
+              <span className={usage.used >= usage.limit ? "text-destructive font-bold" : "text-primary font-bold"}>
+                {usage.used} / {usage.limit}
+              </span>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -64,7 +87,7 @@ export function StudioHub({
               <Button 
                 size="sm" 
                 variant={studioData.studyGuide ? "secondary" : "default"}
-                disabled={loadingType !== null}
+                disabled={loadingType !== null || (usage !== null && usage.used >= usage.limit)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerate("study-guide");
@@ -107,7 +130,7 @@ export function StudioHub({
               <Button 
                 size="sm" 
                 variant={studioData.flashcards ? "secondary" : "default"}
-                disabled={loadingType !== null}
+                disabled={loadingType !== null || (usage !== null && usage.used >= usage.limit)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerate("flashcards");
@@ -150,7 +173,7 @@ export function StudioHub({
               <Button 
                 size="sm" 
                 variant={studioData.quiz ? "secondary" : "default"}
-                disabled={loadingType !== null}
+                disabled={loadingType !== null || (usage !== null && usage.used >= usage.limit)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerate("quiz");
@@ -193,7 +216,7 @@ export function StudioHub({
               <Button 
                 size="sm" 
                 variant={studioData.briefing ? "secondary" : "default"}
-                disabled={loadingType !== null}
+                disabled={loadingType !== null || (usage !== null && usage.used >= usage.limit)}
                 onClick={(e) => {
                   e.stopPropagation();
                   onGenerate("briefing");

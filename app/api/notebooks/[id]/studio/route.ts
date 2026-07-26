@@ -1,11 +1,38 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { sources, sourceChunks, notebooks, studioArtifacts } from "@/lib/db/schema";
+import { sources, sourceChunks, notebooks, studioArtifacts, studioUsageLogs } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, gte } from "drizzle-orm";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { getStudioSystemPrompt, getStudioUserPrompt } from "@/lib/ai/studio-prompts";
+
+async function getDailyGenerationCount(userId: string): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+
+  try {
+    const logs = await db.query.studioUsageLogs.findMany({
+      where: and(
+        eq(studioUsageLogs.userId, userId),
+        gte(studioUsageLogs.createdAt, todayStart)
+      ),
+    });
+    return logs.length;
+  } catch {
+    try {
+      const artifactsToday = await db.query.studioArtifacts.findMany({
+        where: and(
+          eq(studioArtifacts.userId, userId),
+          gte(studioArtifacts.updatedAt, todayStart)
+        ),
+      });
+      return artifactsToday.length;
+    } catch {
+      return 0;
+    }
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -44,7 +71,12 @@ export async function GET(
       }
     });
 
-    return Response.json({ artifacts: result });
+    const todayCount = await getDailyGenerationCount(authPayload.userId);
+
+    return Response.json({ 
+      artifacts: result,
+      usage: { used: todayCount, limit: 10 }
+    });
   } catch (error) {
     console.error("Error fetching studio artifacts:", error);
     return Response.json({ error: "Failed to fetch studio artifacts" }, { status: 500 });
@@ -77,6 +109,15 @@ export async function POST(
 
     if (!type || !["flashcards", "quiz", "study-guide", "briefing", "draft"].includes(type)) {
       return Response.json({ error: "Invalid studio generation type" }, { status: 400 });
+    }
+
+    // Check rate limit (10 generations per day per user)
+    const todayCount = await getDailyGenerationCount(authPayload.userId);
+    if (todayCount >= 10) {
+      return Response.json({
+        error: "Daily AI generation limit reached (10/10 artifacts per day). This rate limit helps conserve OpenAI credits. Please try again tomorrow!",
+        usage: { used: todayCount, limit: 10 }
+      }, { status: 429 });
     }
 
     // Retrieve active sources
@@ -166,7 +207,18 @@ export async function POST(
       }
     }
 
-    return Response.json({ data: returnData, type });
+    try {
+      await db.insert(studioUsageLogs).values({ userId: authPayload.userId });
+    } catch {
+      // Silently ignore if studioUsageLogs table has not been migrated yet
+    }
+    const updatedCount = todayCount + 1;
+
+    return Response.json({ 
+      data: returnData, 
+      type,
+      usage: { used: updatedCount, limit: 10 }
+    });
 
   } catch (error) {
     console.error("Studio generation error:", error);

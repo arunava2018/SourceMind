@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { 
   BookmarkPlus, Trash2, Edit3, Copy, Check, Sparkles, 
   Plus, FileText, Send, Loader2, CheckSquare, Square, 
-  X, AlertCircle, RefreshCw, ArrowRight
+  X, AlertCircle, RefreshCw, ArrowRight, Newspaper, BarChart3, Mail, Wand2
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -362,38 +362,42 @@ export function NotesPanel({ notebookId }: { notebookId: string }) {
                   </div>
 
                   {/* Template Picker */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-6">
                     <button
                       onClick={() => setTemplatePrompt("blog")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all ${
-                        template === "blog" ? "border-primary bg-primary/10 text-primary" : "bg-muted/30 hover:bg-muted"
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-xs font-semibold transition-all gap-1.5 ${
+                        template === "blog" ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      📝 Blog Post
+                      <Newspaper className="h-5 w-5" />
+                      <span>Blog Post</span>
                     </button>
                     <button
                       onClick={() => setTemplatePrompt("report")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all ${
-                        template === "report" ? "border-primary bg-primary/10 text-primary" : "bg-muted/30 hover:bg-muted"
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-xs font-semibold transition-all gap-1.5 ${
+                        template === "report" ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      📊 Report
+                      <BarChart3 className="h-5 w-5" />
+                      <span>Report</span>
                     </button>
                     <button
                       onClick={() => setTemplatePrompt("email")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all ${
-                        template === "email" ? "border-primary bg-primary/10 text-primary" : "bg-muted/30 hover:bg-muted"
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-xs font-semibold transition-all gap-1.5 ${
+                        template === "email" ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      📧 Email
+                      <Mail className="h-5 w-5" />
+                      <span>Email</span>
                     </button>
                     <button
                       onClick={() => setTemplatePrompt("custom")}
-                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-xs font-semibold transition-all ${
-                        template === "custom" ? "border-primary bg-primary/10 text-primary" : "bg-muted/30 hover:bg-muted"
+                      className={`flex flex-col items-center justify-center p-3.5 rounded-2xl border text-xs font-semibold transition-all gap-1.5 ${
+                        template === "custom" ? "border-primary bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20" : "bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      ✏️ Custom
+                      <Wand2 className="h-5 w-5" />
+                      <span>Custom</span>
                     </button>
                   </div>
 

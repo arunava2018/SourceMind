@@ -4,83 +4,71 @@ SourceMind is an enterprise-grade AI personal knowledge base, Notebook Studio, a
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### 1. 💬 Grounded AI Assistant with Interactive Citations
-- **Semantic Retrieval**: Queries are vectorized and matched against high-dimensional embeddings using PostgreSQL `pgvector`.
+### 1. Grounded AI Assistant with Interactive Citations
+- **Semantic Retrieval**: Queries are vectorized and matched against high-dimensional embeddings using PostgreSQL pgvector.
 - **Zero Hallucination Guardrails**: Strict refusal detection prevents citing sources when context is insufficient.
-- **Interactive Citations**: Hovering or clicking bracketed citations (`[1]`, `[2]`) highlights exact excerpts and page numbers in the split-screen source viewer.
+- **Interactive Citations**: Hovering or clicking bracketed citations ([1], [2]) highlights exact excerpts and page numbers in the split-screen source viewer.
 
-### 2. ✨ Notebook Studio & AI Generators
-Transform your unstructured sources into testable study aids and strategic briefings with one click:
+### 2. Notebook Studio & AI Generators
+Transform your unstructured sources into testable study aids and strategic briefings with a modular component architecture:
 - **Interactive 3D Flashcards**: Flip animation deck with progress tracking ("Mastered" vs "Need Practice") and reshuffling controls.
-- **Self-Assessment Quiz**: 5-question multiple-choice interactive quiz player with instant visual feedback and comprehensive explanation reveals.
+- **Self-Assessment Quiz**: Multiple-choice interactive quiz player with instant visual feedback and comprehensive explanation reveals.
 - **Study Guide & FAQ**: Auto-generates structured executive summaries, core definitions, and top FAQs.
 - **Executive Briefing**: Synthesizes high-level strategic takeaways and actionable insights.
 
-### 3. 📝 Pinned Notes & AI Drafting Assistant
+### 3. Pinned Notes & AI Drafting Assistant
 - **Cloud-Synchronized Scratchpad**: Pin AI responses or create custom notes. Synchronized across devices via PostgreSQL and Drizzle ORM with optimistic local caching.
-- **AI Drafting Assistant**: Select pinned notes and choose a drafting template (**Blog Post**, **Analytical Report**, **Email Summary**, or **Custom Prompt**) to synthesize polished documents.
+- **AI Drafting Assistant**: Select pinned notes and choose a drafting template (Blog Post, Analytical Report, Email Summary, or Custom Prompt) to synthesize polished documents.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
-![Next.js](https://img.shields.io/badge/Next.js_16-000000?style=for-the-badge&logo=next.js&logoColor=white)
-![React](https://img.shields.io/badge/React_19-149ECA?style=for-the-badge&logo=react&logoColor=white)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS_v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
-![Axios](https://img.shields.io/badge/Axios-5A29E4?style=for-the-badge&logo=axios&logoColor=white)
-
-- **Framework**: [Next.js](https://nextjs.org/) 16 (App Router, Turbopack, React 19)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/) & [shadcn/ui](https://ui.shadcn.com/)
-- **API Fetching**: `axios` with custom JWT Bearer interception
-- **Markdown & Code**: `react-markdown` with `remark-gfm`
+- **Framework**: Next.js 16 (App Router, Turbopack, React 19)
+- **Styling**: Tailwind CSS v4 & shadcn/ui
+- **API Fetching**: Axios with custom JWT Bearer interception and optimistic local caching
+- **Markdown & Code**: react-markdown with remark-gfm
 
 ### Backend and Database
-![PostgreSQL](https://img.shields.io/badge/Neon_Postgres-336791?style=for-the-badge&logo=postgresql&logoColor=white)
-![Drizzle](https://img.shields.io/badge/Drizzle_ORM-C5F74F?style=for-the-badge&logo=drizzle&logoColor=black)
-![JWT](https://img.shields.io/badge/JWT_Auth-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
-
-- **Database**: [Neon Postgres Serverless](https://neon.tech/) with `pgvector`
-- **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
+- **Database**: Neon Postgres Serverless with pgvector
+- **ORM**: Drizzle ORM
 - **Authentication**: JWT-based custom authentication (bcryptjs, jsonwebtoken)
 
 ### AI and RAG Pipeline
-![OpenAI](https://img.shields.io/badge/OpenAI_gpt--4o-412991?style=for-the-badge&logo=openai&logoColor=white)
-![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
-
-- **Generative AI SDK**: [Vercel AI SDK](https://sdk.vercel.ai/docs) (`ai`, `@ai-sdk/openai`, `@ai-sdk/google`)
-- **Embeddings**: OpenAI's `text-embedding-3-small` (1536 dimensions)
-- **Chunking**: `@langchain/textsplitters` (`TokenTextSplitter` with `cl100k_base` encoding)
-- **Data Loaders**: `pdfjs-dist`, `youtube-transcript`, `cheerio`
+- **Generative AI SDK**: Vercel AI SDK (ai, @ai-sdk/openai, @ai-sdk/google)
+- **Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
+- **Chunking**: @langchain/textsplitters (TokenTextSplitter with cl100k_base encoding)
+- **Data Loaders**: pdfjs-dist, youtube-transcript, cheerio
 
 ---
 
-## 🏗️ RAG & Studio Architecture
+## RAG & Studio Architecture
 
 ```mermaid
 flowchart LR
     subgraph Sources ["1. Ingestion & Indexing"]
         direction TB
-        PDF["📄 PDF / YT / Web / VTT"]
-        Splitter["✂️ TokenTextSplitter\n(512 tokens, 50 overlap)"]
-        Embedder["🧠 OpenAI Embeddings\n(text-embedding-3-small)"]
+        PDF["PDF / YT / Web / VTT"]
+        Splitter["TokenTextSplitter\n(512 tokens, 50 overlap)"]
+        Embedder["OpenAI Embeddings\n(text-embedding-3-small)"]
         PDF --> Splitter --> Embedder
     end
 
     subgraph Storage ["2. PostgreSQL Cloud DB"]
         direction TB
-        DB[("🗄️ Neon Postgres Serverless")]
-        Table["📊 source_chunks\n(pgvector 1536-dim)"]
-        NotesTable["📝 notes & studio_artifacts\n(Cross-Device Sync)"]
+        DB[("Neon Postgres Serverless")]
+        Table["source_chunks\n(pgvector 1536-dim)"]
+        NotesTable["notes & studio_artifacts\n(Cross-Device Sync)"]
         DB --- Table & NotesTable
     end
 
     subgraph Studio ["3. Grounded Synthesis & Studio"]
         direction TB
-        Prompts["🎯 Centralized Studio Prompts\n(lib/ai/studio-prompts.ts)"]
-        LLM["🤖 OpenAI gpt-4o\n(Vercel AI SDK Stream / JSON)"]
+        Prompts["Centralized Studio Prompts\n(lib/ai/studio-prompts.ts)"]
+        LLM["OpenAI gpt-4o\n(Vercel AI SDK Stream / JSON)"]
         Prompts --> LLM
     end
 
@@ -91,9 +79,21 @@ flowchart LR
 
 ---
 
-## 🗄️ Database Schema (ER Diagram)
+## Database Schemas and Relationships
 
-All user notes, flashcard decks, quizzes, and chat messages are persisted in PostgreSQL using Drizzle ORM, ensuring 100% cloud accessibility across devices.
+All user profiles, notebooks, sources, vector chunks, notes, and studio artifacts are managed via relational tables in PostgreSQL using Drizzle ORM.
+
+### Table Responsibilities
+- **users**: Stores authentication credentials and user profile information.
+- **notebooks**: Represents top-level research workspaces created by users.
+- **sources**: Tracks uploaded documents, web URLs, and media transcripts within each notebook.
+- **source_chunks**: Stores tokenized slices of text along with 1536-dimensional vector embeddings for cosine similarity search.
+- **messages**: Preserves chat conversation history between the user and the grounded AI assistant.
+- **message_citations**: Records exact source chunk associations, excerpts, and page numbers cited in AI responses.
+- **notes**: Holds user-created scratchpad notes and AI-drafted documents, synchronized across devices.
+- **studio_artifacts**: Persists generated study aids (flashcards, quizzes, study guides, briefings) in structured JSON or markdown format for offline and cross-device access.
+
+### Entity Relationship Diagram
 
 ```mermaid
 erDiagram
@@ -113,23 +113,50 @@ erDiagram
         uuid id PK
         varchar name
         varchar email
+        varchar password
+        timestamp created_at
     }
     notebooks {
         uuid id PK
         uuid user_id FK
         varchar title
+        text description
+        timestamp created_at
+        timestamp updated_at
     }
     sources {
         uuid id PK
         uuid notebook_id FK
-        source_type type
+        varchar type
+        varchar name
         varchar url
+        varchar status
+        jsonb metadata
+        timestamp uploaded_at
     }
     source_chunks {
         uuid id PK
         uuid source_id FK
-        vector embedding
+        integer chunk_index
         text content
+        vector embedding
+        jsonb metadata
+    }
+    messages {
+        uuid id PK
+        uuid notebook_id FK
+        varchar role
+        text content
+        jsonb citations
+        timestamp created_at
+    }
+    message_citations {
+        uuid id PK
+        uuid message_id FK
+        uuid source_id FK
+        integer chunk_index
+        text excerpt
+        integer page_number
     }
     notes {
         uuid id PK
@@ -137,6 +164,8 @@ erDiagram
         uuid user_id FK
         varchar title
         text content
+        timestamp created_at
+        timestamp updated_at
     }
     studio_artifacts {
         uuid id PK
@@ -144,70 +173,98 @@ erDiagram
         uuid user_id FK
         varchar type
         text content
+        timestamp created_at
+        timestamp updated_at
     }
 ```
 
 ---
 
-## 📁 Folder Structure
+## Folder Structure
 
 ```
 .
 ├── app/
-│   ├── api/                      # Next.js API Route Handlers (Backend)
-│   │   ├── auth/                 # Login, Signup, and Me routes
-│   │   └── notebooks/            # Notebook CRUD endpoints
-│   │       ├── [id]/chat/        # RAG Chat & Streaming Citations
-│   │       ├── [id]/sources/     # Multi-Modal Source Ingestion
-│   │       ├── [id]/studio/      # Studio Generators & DB Persistence
-│   │       └── [id]/notes/       # Cloud-Synchronized Pinned Notes CRUD
-│   ├── dashboard/                # Dashboard UI for managing notebooks
-│   ├── login/ & signup/          # Authentication pages
-│   └── notebook/[id]/            # Main Workspace (Chat, Studio, Notes, Viewer tabs)
+│   ├── api/                              # Next.js API Route Handlers (Backend)
+│   │   ├── auth/                         # Authentication routes (login, signup, session validation)
+│   │   └── notebooks/                    # Notebook management and workspace endpoints
+│   │       ├── [id]/                     # Single notebook CRUD operations
+│   │       ├── [id]/chat/                # Grounded RAG Chat & streaming citations
+│   │       ├── [id]/messages/            # Chat history retrieval
+│   │       ├── [id]/notes/               # Cloud-synchronized notes CRUD
+│   │       │   └── [noteId]/             # Specific note update and deletion
+│   │       ├── [id]/sources/             # Multi-modal source ingestion and vector indexing
+│   │       │   └── [sourceId]/           # Source deletion and vector cleanup
+│   │       └── [id]/studio/              # Studio generators and database persistence
+│   ├── dashboard/                        # Dashboard UI for workspace management
+│   ├── login/ & signup/                  # User authentication pages
+│   └── notebook/[id]/                    # Main Workspace (Chat, Studio, Notes, Viewer tabs)
 ├── components/
-│   ├── notebook/                 # Core Workspace UI components
-│   │   ├── chat-panel.tsx        # Grounded Chat with Auto-Scroll & Citations
-│   │   ├── studio-panel.tsx      # Hub, 3D Flashcards, Quiz Player, Study Guides
-│   │   ├── notes-panel.tsx       # Pinned Notes Scratchpad & AI Drafting Assistant
-│   │   └── source-viewer.tsx     # Split-screen highlighter & source inspector
-│   └── ui/                       # Reusable shadcn/ui components
+│   ├── dashboard/                        # Dashboard components (notebook cards, creation dialogs)
+│   ├── landing/                          # Landing page sections and navigation
+│   ├── layout/                           # Global application headers and footers
+│   ├── notebook/                         # Workspace UI components
+│   │   ├── chat-panel.tsx                # Grounded Chat with auto-scroll and citations
+│   │   ├── notes-panel.tsx               # Pinned notes scratchpad and AI drafting assistant
+│   │   ├── source-viewer.tsx             # Split-screen highlighter and source inspector
+│   │   ├── studio-panel.tsx              # Main studio controller and state manager
+│   │   └── studio/                       # Modular Studio sub-components
+│   │       ├── types.ts                  # Shared TypeScript interfaces (Flashcard, QuizQuestion)
+│   │       ├── studio-hub.tsx            # Selection hub for generating study tools
+│   │       ├── flashcard-viewer.tsx      # Interactive 3D flip-card deck and mastery progression
+│   │       ├── quiz-viewer.tsx           # Self-assessment multiple-choice quiz player
+│   │       └── document-viewer.tsx       # Markdown reader for Study Guides and Executive Briefings
+│   └── ui/                               # Reusable shadcn/ui primitive components
 ├── lib/
-│   ├── ai/                       # RAG & Prompt engineering modules
-│   │   ├── studio-prompts.ts     # Decoupled prompt generator for Studio & Drafting
-│   │   ├── chunker.ts            # LangChain token splitter
-│   │   └── loaders.ts            # PDF, YouTube, and HTML scrapers
-│   ├── db/                       # Neon Serverless connection & Drizzle ORM schema
-│   ├── notes-util.ts             # Axios DB sync & optimistic localStorage fallback
-│   ├── auth.ts                   # JWT utilities
-│   └── store.tsx                 # Global React Context store (Axios integrated)
-└── public/                       # Static assets (PDF.js worker, icons)
+│   ├── ai/                               # RAG and prompt engineering modules
+│   │   ├── studio-prompts.ts             # Centralized prompt generator for Studio and drafting
+│   │   ├── chunker.ts                    # LangChain token splitter configuration
+│   │   └── loaders.ts                    # PDF, YouTube, and HTML scrapers
+│   ├── db/                               # Neon Serverless connection and Drizzle ORM schema
+│   ├── auth-context.tsx                  # React authentication state provider
+│   ├── auth.ts                           # JWT token verification and header extraction
+│   ├── notes-util.ts                     # Storage synchronization and optimistic local caching
+│   └── store.tsx                         # Global React Context store (Axios integrated)
+└── public/                               # Static assets (PDF.js worker, icons)
 ```
 
 ---
 
-## 🔌 API Endpoints
+## API Routes and Responsibilities
 
-### Authentication
-- `POST /api/auth/signup` — Register a new account
-- `POST /api/auth/login` — Authenticate and receive a JWT Bearer token
-- `GET /api/auth/me` — Validate token and return user profile
+### Authentication Routes
+- `POST /api/auth/signup` — Registers a new user account, hashes credentials, and issues an authentication JWT.
+- `POST /api/auth/login` — Authenticates user credentials and returns a JWT Bearer token and profile data.
+- `GET /api/auth/me` — Validates the authorization header token and returns the current user session profile.
 
-### Notebooks & Sources
-- `GET/POST /api/notebooks` — List or create notebooks
-- `GET/POST /api/notebooks/[id]/sources` — List or ingest multi-modal sources (triggers chunking & vector indexing)
+### Notebook Management Routes
+- `GET /api/notebooks` — Retrieves all notebooks belonging to the authenticated user.
+- `POST /api/notebooks` — Creates a new research notebook workspace.
+- `GET /api/notebooks/[id]` — Fetches details and metadata for a specific notebook.
+- `DELETE /api/notebooks/[id]` — Deletes a notebook along with all associated sources, chunks, notes, and studio artifacts.
 
-### Chat & Studio
-- `POST /api/notebooks/[id]/chat` — Submit query, run cosine similarity search, stream LLM response with citations
-- `GET /api/notebooks/[id]/studio` — Retrieve saved Studio artifacts (Flashcards, Quizzes, Briefings) from PostgreSQL
-- `POST /api/notebooks/[id]/studio` — Sample 30 source chunks, generate asset via `gpt-4o`, and automatically persist to DB
+### Source Ingestion and Indexing Routes
+- `GET /api/notebooks/[id]/sources` — Lists all ingested sources and their indexing status for a notebook.
+- `POST /api/notebooks/[id]/sources` — Ingests a multi-modal source (PDF, YouTube transcript, website URL, plain text, or VTT), chunks the content, generates OpenAI embeddings, and stores vectors in PostgreSQL.
+- `DELETE /api/notebooks/[id]/sources/[sourceId]` — Removes a source and permanently purges its associated vector chunks from the database.
 
-### Cloud Notes
-- `GET/POST /api/notebooks/[id]/notes` — Fetch all pinned notes or create a new cloud note
-- `PATCH/DELETE /api/notebooks/[id]/notes/[noteId]` — Update note content/title or delete a note
+### Grounded Chat and Conversation Routes
+- `POST /api/notebooks/[id]/chat` — Receives a user prompt, vectorizes the query, executes a cosine similarity search across source chunks, and streams the grounded OpenAI response with bracketed citation metadata.
+- `GET /api/notebooks/[id]/messages` — Retrieves the historical chat log and associated citations for a notebook workspace.
+
+### Notebook Studio Routes
+- `GET /api/notebooks/[id]/studio` — Fetches all previously generated study tools (flashcard decks, quizzes, study guides, executive briefings) from PostgreSQL.
+- `POST /api/notebooks/[id]/studio` — Aggregates up to 30 relevant document chunks, constructs specialized system prompts, invokes OpenAI gpt-4o to generate structured study aids, and persists the JSON/markdown output to the database.
+
+### Cloud Notes and Drafting Routes
+- `GET /api/notebooks/[id]/notes` — Retrieves all pinned notes and AI drafts for a notebook workspace.
+- `POST /api/notebooks/[id]/notes` — Creates and persists a new user note or AI-synthesized document draft.
+- `PATCH /api/notebooks/[id]/notes/[noteId]` — Updates the title or body text of an existing cloud note.
+- `DELETE /api/notebooks/[id]/notes/[noteId]` — Deletes a specific pinned note from database storage.
 
 ---
 
-## 🚀 Setup and Development
+## Setup and Development
 
 1. **Install Dependencies**
    ```bash
@@ -234,4 +291,4 @@ erDiagram
    ```bash
    npm run dev
    ```
-   Open `http://localhost:3000` to experience SourceMind.
+   Open `http://localhost:3000` to access SourceMind.

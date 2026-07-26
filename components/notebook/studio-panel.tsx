@@ -12,6 +12,7 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
   const [activeView, setActiveView] = useState<StudioViewType>("hub");
   const [loadingType, setLoadingType] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null);
 
   // Stored state for artifacts
   const [studioData, setStudioData] = useState<StudioState>({});
@@ -34,6 +35,9 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
           headers: { Authorization: `Bearer ${token}` },
         })
         .then((res) => {
+          if (res.data?.usage) {
+            setUsage(res.data.usage);
+          }
           if (res.data?.artifacts) {
             const fetched = res.data.artifacts;
             setStudioData((prev) => {
@@ -76,6 +80,9 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
       );
 
       const data = res.data;
+      if (data.usage) {
+        setUsage(data.usage);
+      }
 
       if (type === "study-guide") {
         updateStudioData({ studyGuide: data.data });
@@ -88,7 +95,10 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
       }
       setActiveView(type);
     } catch (err: any) {
-      setError(err.message || "An error occurred during generation.");
+      if (err.response?.data?.usage) {
+        setUsage(err.response.data.usage);
+      }
+      setError(err.response?.data?.error || err.message || "An error occurred during generation.");
     } finally {
       setLoadingType(null);
     }
@@ -100,6 +110,7 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
         studioData={studioData}
         loadingType={loadingType}
         error={error}
+        usage={usage}
         onSelectView={setActiveView}
         onGenerate={generateArtifact}
       />
@@ -143,6 +154,7 @@ export function StudioPanel({ notebookId }: { notebookId: string }) {
       studioData={studioData}
       loadingType={loadingType}
       error={error}
+      usage={usage}
       onSelectView={setActiveView}
       onGenerate={generateArtifact}
     />
