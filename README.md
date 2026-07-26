@@ -17,6 +17,7 @@ Transform your unstructured sources into testable study aids and strategic brief
 - **Self-Assessment Quiz**: Multiple-choice interactive quiz player with instant visual feedback and comprehensive explanation reveals.
 - **Study Guide & FAQ**: Auto-generates structured executive summaries, core definitions, and top FAQs.
 - **Executive Briefing**: Synthesizes high-level strategic takeaways and actionable insights.
+- **AI Credits Rate Limiting**: Built-in quota protection enforces a 10-item daily generation limit per user (resetting at midnight UTC) with a live usage counter and backend guardrails.
 
 ### 3. Pinned Notes & AI Drafting Assistant
 - **Cloud-Synchronized Scratchpad**: Pin AI responses or create custom notes. Synchronized across devices via PostgreSQL and Drizzle ORM with optimistic local caching.
@@ -92,6 +93,7 @@ All user profiles, notebooks, sources, vector chunks, notes, and studio artifact
 - **message_citations**: Records exact source chunk associations, excerpts, and page numbers cited in AI responses.
 - **notes**: Holds user-created scratchpad notes and AI-drafted documents, synchronized across devices.
 - **studio_artifacts**: Persists generated study aids (flashcards, quizzes, study guides, briefings) in structured JSON or markdown format for offline and cross-device access.
+- **studio_usage_logs**: Tracks daily AI generation timestamps per user to enforce OpenAI credit conservation rate limits (10 generations per day).
 
 ### Entity Relationship Diagram
 
@@ -101,6 +103,7 @@ erDiagram
     users ||--o{ messages : "sends"
     users ||--o{ notes : "pins"
     users ||--o{ studio_artifacts : "generates"
+    users ||--o{ studio_usage_logs : "tracks usage"
     notebooks ||--o{ sources : "contains"
     notebooks ||--o{ messages : "has"
     notebooks ||--o{ notes : "holds"
@@ -175,6 +178,11 @@ erDiagram
         text content
         timestamp created_at
         timestamp updated_at
+    }
+    studio_usage_logs {
+        uuid id PK
+        uuid user_id FK
+        timestamp created_at
     }
 ```
 
