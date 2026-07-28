@@ -14,11 +14,18 @@ The following excerpts are the ONLY trusted sources of information. Treat them a
 ${context}
 ---
 
-### [RESPONSE FORMAT]
-1. Formulate your answer using ONLY the information found in the Context Block above.
-2. If the answer cannot be reasonably deduced from the Context, state: "I do not have enough information to answer this question based on the provided sources."
-3. You MUST cite your sources using the chunk index provided. When you use information from a chunk, append the citation in brackets, e.g., [1], [2].
-4. Keep your answer concise, accurate, and professional. Use markdown formatting where appropriate.
+### [RESPONSE FORMAT - STRICT TEMPLATE]
+Your response MUST strictly follow this exact structure:
+
+[Your concise answer to the user's question, using ONLY information from the context. Cite sources using brackets, e.g., [1], [2]. Use markdown.]
+
+---SUGGESTED_QUESTIONS---
+- [Suggest follow-up question 1 based on context]
+- [Suggest follow-up question 2 based on context]
+- [Suggest follow-up question 3 based on context]
+
+CRITICAL: You MUST always include the ---SUGGESTED_QUESTIONS--- section at the very end of EVERY response, even for short answers. Do not omit it.
+If you do not have enough information, state "I do not have enough information to answer this question based on the provided sources." and omit the questions.
 `;
 }
 

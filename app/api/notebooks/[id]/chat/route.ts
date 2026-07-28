@@ -96,6 +96,14 @@ export async function POST(
     // Keep only the last 10 messages for conversation history windowing (token budgeting)
     const prunedMessages = chatMessages.slice(-10);
 
+    // Inject a reminder to the very last user message to enforce the format, bypassing history bias.
+    if (prunedMessages.length > 0) {
+      const lastMsg = prunedMessages[prunedMessages.length - 1];
+      if (lastMsg.role === "user") {
+        lastMsg.content = lastMsg.content + "\n\nCRITICAL REMINDER: You MUST append the ---SUGGESTED_QUESTIONS--- section and 3 suggested questions at the very end of your response, as strictly instructed in the system prompt.";
+      }
+    }
+
     // 5. Stream the response from OpenAI
     const result = await streamText({
       model: openai("gpt-4o"),

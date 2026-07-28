@@ -102,7 +102,29 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                 )}
               </div>
             ) : (
-              messages.map((message) => (
+              messages.map((message, messageIndex) => {
+                let displayContent = message.content || "";
+                let suggestedQuestions: string[] = [];
+
+                if (message.role === "assistant") {
+                  const delimiter = "---SUGGESTED_QUESTIONS---";
+                  const delimiterIndex = displayContent.indexOf(delimiter);
+                  if (delimiterIndex !== -1) {
+                    const questionsText = displayContent.slice(delimiterIndex + delimiter.length);
+                    displayContent = displayContent.slice(0, delimiterIndex).trim();
+                    
+                    suggestedQuestions = questionsText
+                      .split('\n')
+                      .map(q => q.replace(/^[-\d\.\s*]+/, '').trim())
+                      .filter(q => q.length > 0);
+                  } else if (displayContent.includes("---SUGGESTED")) {
+                    displayContent = displayContent.split("---SUGGESTED")[0].trim();
+                  }
+                }
+
+                const isLatestAssistant = message.role === "assistant" && messageIndex === messages.length - 1;
+
+                return (
                 <div
                   key={message.id}
                   className={`flex gap-4 ${
@@ -134,7 +156,7 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                       ) : (
                         <div className="prose prose-sm dark:prose-invert max-w-none break-words">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {message.content}
+                            {displayContent}
                           </ReactMarkdown>
                         </div>
                       )}
@@ -145,7 +167,7 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                       if (!message.citations || message.citations.length === 0) return null;
 
                       // Check if message is a refusal / lack of context response
-                      const lowerContent = (message.content || "").toLowerCase();
+                      const lowerContent = displayContent.toLowerCase();
                       const isRefusal = lowerContent.includes("not have enough information") ||
                                         lowerContent.includes("don't have enough information") ||
                                         lowerContent.includes("not have enough context") ||
@@ -161,9 +183,9 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
 
                       // Filter citations to only show ones referenced in brackets [1], [2], etc.,
                       // or if no brackets are used in the text, show all citations.
-                      const hasBrackets = message.citations.some((_, i) => (message.content || "").includes(`[${i + 1}]`));
+                      const hasBrackets = message.citations.some((_, i) => displayContent.includes(`[${i + 1}]`));
                       const activeCitations = hasBrackets
-                        ? message.citations.filter((_, i) => (message.content || "").includes(`[${i + 1}]`))
+                        ? message.citations.filter((_, i) => displayContent.includes(`[${i + 1}]`))
                         : message.citations;
 
                       if (activeCitations.length === 0) return null;
@@ -212,11 +234,11 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                       );
                     })()}
 
-                    {message.role === "assistant" && message.content && (
+                    {message.role === "assistant" && displayContent && (
                       <div className="mt-1 flex justify-start">
                         <button
                           onClick={() => {
-                            pinNoteToStorage(notebookId, message.content, "Chat Response", "AI Assistant");
+                            pinNoteToStorage(notebookId, displayContent, "Chat Response", "AI Assistant");
                             setPinnedMsgId(message.id);
                             setTimeout(() => setPinnedMsgId(null), 2000);
                           }}
@@ -230,9 +252,29 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                         </button>
                       </div>
                     )}
+
+                    {isLatestAssistant && suggestedQuestions.length > 0 && !isGenerating && (
+                      <div className="mt-3 w-full">
+                        <p className="text-[11px] font-medium text-muted-foreground px-1 mb-2">Suggested Follow-ups:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {suggestedQuestions.map((q, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                sendMessage(notebookId, q);
+                              }}
+                              className="text-left text-xs px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary transition-colors hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-sm"
+                            >
+                              {q}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))
+              );
+            })
             )}
             <div ref={bottomRef} className="h-px shrink-0" />
           </div>
