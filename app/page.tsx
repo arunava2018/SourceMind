@@ -1,5 +1,6 @@
 import { Header } from "@/components/layout/header"
 import { Hero } from "@/components/landing/hero"
+import { TrustMetrics } from "@/components/landing/trust-metrics"
 import { SourceTypes } from "@/components/landing/source-types"
 import { HowItWorks } from "@/components/landing/how-it-works"
 import { Features } from "@/components/landing/features"
@@ -13,6 +14,7 @@ export default function LandingPage() {
     <div className="flex min-h-svh flex-col">
       <Header />
       <Hero />
+      <TrustMetrics />
       <SourceTypes />
       <HowItWorks />
       <Testimonials />

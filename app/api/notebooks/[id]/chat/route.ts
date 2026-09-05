@@ -53,9 +53,9 @@ export async function POST(
       FROM ${sourceChunks}
       INNER JOIN ${sources} ON ${sourceChunks.sourceId} = ${sources.id}
       WHERE ${sources.notebookId} = ${notebookId}
-        AND (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) < 0.75
+        AND (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) < 0.85
       ORDER BY distance ASC
-      LIMIT 5
+      LIMIT 8
     `;
 
     // Note: Drizzle's execute returns an array of objects. We map them to match our expectations.
