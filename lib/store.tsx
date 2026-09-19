@@ -190,6 +190,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...c,
           sourceName: c.source?.name || c.sourceName || "Unknown Source",
           sourceType: c.source?.type?.toLowerCase() || c.sourceType || "text",
+          chunkText: c.chunkText || c.chunk_text || "",
         }))
       }));
       
@@ -395,7 +396,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let citations: Citation[] = [];
       if (citationsHeader) {
          try {
-           citations = JSON.parse(atob(citationsHeader));
+           const raw = JSON.parse(atob(citationsHeader));
+           citations = raw.map((c: any) => ({
+             id: c.id || crypto.randomUUID(),
+             sourceId: c.sourceId,
+             sourceName: c.sourceName,
+             sourceType: c.sourceType,
+             chunkIndex: c.chunkIndex ?? c.chunk_index ?? 0,
+             chunkText: c.chunkText || c.content || "",
+             metadata: c.metadata,
+           }));
          } catch (e) {
            console.error("Failed to parse citations", e);
          }

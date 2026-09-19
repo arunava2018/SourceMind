@@ -13,6 +13,11 @@ import {
   MessageFooter,
 } from "@/components/ui/message"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   Send,
   User,
   Bot,
@@ -26,6 +31,7 @@ import {
   Check,
   BrainCircuit,
   Sparkles,
+  ExternalLink,
 } from "lucide-react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -313,7 +319,7 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                                   text: { icon: MessageSquare, color: "text-emerald-400", bg: "bg-emerald-500/10" },
                                 }
 
-                                return (
+                                 return (
                                   <div className="flex flex-wrap gap-1.5">
                                     {activeCitations.map((citation, index) => {
                                       const source = notebookSources.find(
@@ -323,36 +329,88 @@ export function ChatPanel({ notebookId }: { notebookId: string }) {
                                         source?.type || citation.sourceType || "text"
                                       const config = iconConfig[sourceType] || iconConfig.text
                                       const TypeIcon = config.icon
+
+                                      // Resolve external URL for url / youtube sources
+                                      const externalUrl =
+                                        (sourceType === "url" || sourceType === "youtube")
+                                          ? (source?.url ||
+                                             (source?.originalContent?.startsWith("http")
+                                               ? source.originalContent
+                                               : null))
+                                          : null
+
+                                      // All source types show a popover with the chunk text.
+                                      // URL / YouTube additionally get an "Open Source" footer link.
                                       return (
-                                        <button
-                                          key={citation.id}
-                                          onClick={() => {
-                                            if (source && (sourceType === "url" || sourceType === "youtube")) {
-                                              const targetUrl =
-                                                source.url ||
-                                                (source.originalContent?.startsWith("http")
-                                                  ? source.originalContent
-                                                  : null)
-                                              if (targetUrl) {
-                                                window.open(targetUrl, "_blank")
-                                                return
-                                              }
-                                            }
-                                            if (source) setActiveViewerSource(source, citation)
-                                          }}
-                                          className="group inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/80 backdrop-blur-sm px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground hover:border-border hover:shadow-sm"
-                                          title={`View citation from ${citation.sourceName}`}
-                                        >
-                                          <span className={`flex h-4 w-4 items-center justify-center rounded ${config.bg}`}>
-                                            <TypeIcon className={`h-2.5 w-2.5 ${config.color}`} />
-                                          </span>
-                                          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
-                                            {index + 1}
-                                          </span>
-                                          <span className="truncate max-w-[140px] group-hover:text-foreground transition-colors">
-                                            {citation.sourceName}
-                                          </span>
-                                        </button>
+                                        <Popover key={citation.id}>
+                                          <PopoverTrigger asChild>
+                                            <button
+                                              className="group inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/80 backdrop-blur-sm px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground hover:border-border hover:shadow-sm data-[state=open]:bg-accent data-[state=open]:text-accent-foreground data-[state=open]:border-border"
+                                              title={`View excerpt from ${citation.sourceName}`}
+                                            >
+                                              <span className={`flex h-4 w-4 items-center justify-center rounded ${config.bg}`}>
+                                                <TypeIcon className={`h-2.5 w-2.5 ${config.color}`} />
+                                              </span>
+                                              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+                                                {index + 1}
+                                              </span>
+                                              <span className="truncate max-w-[140px] group-hover:text-foreground transition-colors">
+                                                {citation.sourceName}
+                                              </span>
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent
+                                            side="top"
+                                            align="start"
+                                            className="w-80 p-0 shadow-lg"
+                                          >
+                                            {/* Header */}
+                                            <div className={`flex items-center gap-2 px-3 py-2 border-b rounded-t-md ${config.bg}`}>
+                                              <span className={`flex h-5 w-5 items-center justify-center rounded ${config.bg}`}>
+                                                <TypeIcon className={`h-3 w-3 ${config.color}`} />
+                                              </span>
+                                              <div className="flex flex-col min-w-0">
+                                                <span className="text-xs font-semibold text-foreground truncate">
+                                                  {citation.sourceName}
+                                                </span>
+                                                {citation.metadata?.pageNumber && (
+                                                  <span className="text-[10px] text-muted-foreground">
+                                                    Page {citation.metadata.pageNumber}
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary shrink-0">
+                                                {index + 1}
+                                              </span>
+                                            </div>
+                                            {/* Chunk text body */}
+                                            <div className="px-3 py-2.5 max-h-48 overflow-y-auto">
+                                              {citation.chunkText ? (
+                                                <p className="text-xs leading-relaxed text-foreground/80 whitespace-pre-wrap">
+                                                  {citation.chunkText}
+                                                </p>
+                                              ) : (
+                                                <p className="text-xs text-muted-foreground italic">
+                                                  No excerpt available for this citation.
+                                                </p>
+                                              )}
+                                            </div>
+                                            {/* Footer: open external link for url / youtube */}
+                                            {externalUrl && (
+                                              <div className="px-3 py-2 border-t">
+                                                <a
+                                                  href={externalUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className={`inline-flex items-center gap-1 text-[11px] font-medium ${config.color} hover:underline`}
+                                                >
+                                                  Open source
+                                                  <ExternalLink className="h-2.5 w-2.5" />
+                                                </a>
+                                              </div>
+                                            )}
+                                          </PopoverContent>
+                                        </Popover>
                                       )
                                     })}
                                   </div>
