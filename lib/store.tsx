@@ -86,6 +86,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const [activeViewerSource, setActiveViewerSource] = useState<{ source: Source; citation?: Citation } | null>(null);
   const isFetchingNotebooksRef = useRef(false);
+  const inFlightSourcesRef = useRef<Set<string>>(new Set());
+  const inFlightMessagesRef = useRef<Set<string>>(new Set());
 
   const fetchNotebooks = useCallback(async (force = false) => {
     const token = localStorage.getItem('sourcemind_token');
@@ -173,7 +175,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setNotebooks(prev => prev.map(n => n.id === notebookId ? { ...n, updatedAt: new Date() } : n));
   }, []);
 
-  const loadMessages = useCallback(async (notebookId: string) => {
+  const loadMessages = useCallback(async (notebookId: string, force = false) => {
+    if (inFlightMessagesRef.current.has(notebookId) && !force) return;
+    inFlightMessagesRef.current.add(notebookId);
     setIsLoadingMessages(true);
     try {
       const token = localStorage.getItem('sourcemind_token');
@@ -203,10 +207,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error("Failed to load messages:", error);
     } finally {
       setIsLoadingMessages(false);
+      inFlightMessagesRef.current.delete(notebookId);
     }
   }, []);
 
-  const loadSources = useCallback(async (notebookId: string) => {
+  const loadSources = useCallback(async (notebookId: string, force = false) => {
+    if (inFlightSourcesRef.current.has(notebookId) && !force) return;
+    inFlightSourcesRef.current.add(notebookId);
     setIsLoadingSources(true);
     try {
       const token = localStorage.getItem('sourcemind_token');
@@ -229,6 +236,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       console.error("Failed to load sources:", error);
     } finally {
       setIsLoadingSources(false);
+      inFlightSourcesRef.current.delete(notebookId);
     }
   }, []);
 
@@ -448,8 +456,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [messages]);
 
-  const setActiveViewerSourceWrapper = useCallback((source: Source, citation?: Citation) => {
+  const setActiveViewerSourceWrapper = useCallback(async (source: Source, citation?: Citation) => {
     setActiveViewerSource({ source, citation });
+    // If text/web content is opened and originalContent was excluded in list fetch, load it on demand
+    if (!source.originalContent && (source.type === 'text' || source.type === 'url' || source.type === 'vtt')) {
+      try {
+        const token = localStorage.getItem('sourcemind_token');
+        if (token && source.notebookId) {
+          const res = await axios.get(`/api/notebooks/${source.notebookId}/sources/${source.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.data?.source?.originalContent) {
+            const updatedSource = { ...source, originalContent: res.data.source.originalContent };
+            setActiveViewerSource({ source: updatedSource, citation });
+            setSources(prev => prev.map(s => s.id === source.id ? updatedSource : s));
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load source details:", err);
+      }
+    }
   }, []);
 
   const closeViewer = useCallback(() => {

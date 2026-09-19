@@ -19,24 +19,24 @@ export async function POST(
     }
 
     const { id: notebookId } = await params;
-
-    // Verify notebook belongs to user
-    const notebook = await db.query.notebooks.findFirst({
-      where: and(eq(notebooks.id, notebookId), eq(notebooks.userId, authPayload.userId)),
-    });
-
-    if (!notebook) {
-      return Response.json({ error: "Notebook not found" }, { status: 404 });
-    }
-
     const { messages: chatMessages } = await request.json();
     
     // Get the latest user message
     const latestMessage = chatMessages[chatMessages.length - 1];
     const userQuery = latestMessage.content;
 
-    // 1. Generate embedding for the user's query
-    const queryEmbedding = await generateEmbedding(userQuery);
+    // 1. Concurrently verify notebook ownership and generate embedding for user query
+    const [notebook, queryEmbedding] = await Promise.all([
+      db.query.notebooks.findFirst({
+        where: and(eq(notebooks.id, notebookId), eq(notebooks.userId, authPayload.userId)),
+        columns: { id: true },
+      }),
+      generateEmbedding(userQuery),
+    ]);
+
+    if (!notebook) {
+      return Response.json({ error: "Notebook not found" }, { status: 404 });
+    }
 
     // 2. Perform Vector Similarity Search
     // We want the top 5 most similar chunks from sources in this notebook.
@@ -80,18 +80,18 @@ export async function POST(
 
     const systemPrompt = generateSystemPrompt(contextString);
 
-    // 4. Save the User message to DB
-    const [savedUserMessage] = await db.insert(messages).values({
-      notebookId,
-      userId: authPayload.userId,
-      role: "USER",
-      content: userQuery,
-    }).returning();
-
-    // Update notebook updatedAt
-    await db.update(notebooks)
-      .set({ updatedAt: new Date() })
-      .where(eq(notebooks.id, notebookId));
+    // 4. Save User message & update notebook in parallel
+    await Promise.all([
+      db.insert(messages).values({
+        notebookId,
+        userId: authPayload.userId,
+        role: "USER",
+        content: userQuery,
+      }),
+      db.update(notebooks)
+        .set({ updatedAt: new Date() })
+        .where(eq(notebooks.id, notebookId)),
+    ]);
 
     // Keep only the last 10 messages for conversation history windowing (token budgeting)
     const prunedMessages = chatMessages.slice(-10);

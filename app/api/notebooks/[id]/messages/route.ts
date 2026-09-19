@@ -30,11 +30,27 @@ export async function GET(
       orderBy: (messages, { asc }) => [asc(messages.createdAt)],
       with: {
         citations: {
+          columns: {
+            id: true,
+            messageId: true,
+            sourceId: true,
+            sourceChunkId: true,
+            chunkText: true,
+            chunkIndex: true,
+            metadata: true,
+            createdAt: true,
+          },
           with: {
-            source: true,
-          }
-        }
-      }
+            source: {
+              columns: {
+                id: true,
+                name: true,
+                type: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     return Response.json({ success: true, messages: notebookMessages });

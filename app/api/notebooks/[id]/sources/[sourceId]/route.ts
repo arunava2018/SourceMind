@@ -2,7 +2,34 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { sources, notebooks } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; sourceId: string }> }
+) {
+  try {
+    const authPayload = getAuthFromHeader(request.headers.get("Authorization"));
+    if (!authPayload) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: notebookId, sourceId } = await params;
+
+    const source = await db.query.sources.findFirst({
+      where: and(eq(sources.id, sourceId), eq(sources.notebookId, notebookId)),
+    });
+
+    if (!source) {
+      return Response.json({ error: "Source not found" }, { status: 404 });
+    }
+
+    return Response.json({ success: true, source });
+  } catch (error) {
+    console.error("Fetch source error:", error);
+    return Response.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
 export async function DELETE(
   request: NextRequest,

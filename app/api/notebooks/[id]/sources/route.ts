@@ -177,6 +177,21 @@ export async function GET(
 
     const notebookSources = await db.query.sources.findMany({
       where: eq(sources.notebookId, notebookId),
+      columns: {
+        id: true,
+        notebookId: true,
+        name: true,
+        type: true,
+        status: true,
+        url: true,
+        filePath: true,
+        fileSize: true,
+        mimeType: true,
+        pageCount: true,
+        duration: true,
+        errorMessage: true,
+        uploadedAt: true,
+      },
       orderBy: (sources, { desc }) => [desc(sources.uploadedAt)],
     });
 

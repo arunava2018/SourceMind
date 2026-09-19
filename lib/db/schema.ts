@@ -76,7 +76,10 @@ export const notebooks = pgTable(
       .notNull()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index("notebooks_user_id_idx").on(table.userId)],
+  (table) => [
+    index("notebooks_user_id_idx").on(table.userId),
+    index("notebooks_user_created_idx").on(table.userId, table.createdAt.desc()),
+  ],
 );
 
 export const notebooksRelations = relations(notebooks, ({ one, many }) => ({
@@ -116,7 +119,9 @@ export const sources = pgTable(
   },
   (table) => [
     index("sources_notebook_id_idx").on(table.notebookId),
+    index("sources_notebook_uploaded_idx").on(table.notebookId, table.uploadedAt.desc()),
     index("sources_notebook_status_idx").on(table.notebookId, table.status),
+    index("sources_uploaded_at_idx").on(table.uploadedAt),
   ],
 );
 
@@ -149,6 +154,7 @@ export const sourceChunks = pgTable(
   },
   (table) => [
     index("source_chunks_source_id_idx").on(table.sourceId),
+    index("source_chunks_source_chunk_idx").on(table.sourceId, table.chunkIndex),
     index("source_chunks_embedding_idx").using(
       "hnsw",
       table.embedding.op("vector_cosine_ops")
@@ -231,6 +237,7 @@ export const messageCitations = pgTable(
   (table) => [
     index("message_citations_message_id_idx").on(table.messageId),
     index("message_citations_source_id_idx").on(table.sourceId),
+    index("message_citations_chunk_id_idx").on(table.sourceChunkId),
   ],
 );
 
@@ -279,6 +286,11 @@ export const notes = pgTable(
   (table) => [
     index("notes_notebook_id_idx").on(table.notebookId),
     index("notes_user_id_idx").on(table.userId),
+    index("notes_notebook_user_created_idx").on(
+      table.notebookId,
+      table.userId,
+      table.createdAt.desc()
+    ),
   ],
 );
 
@@ -317,6 +329,7 @@ export const studioArtifacts = pgTable(
   },
   (table) => [
     index("studio_artifacts_notebook_id_idx").on(table.notebookId),
+    index("studio_artifacts_notebook_user_idx").on(table.notebookId, table.userId),
     index("studio_artifacts_notebook_type_idx").on(table.notebookId, table.type),
   ],
 );
@@ -345,7 +358,10 @@ export const studioUsageLogs = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (table) => [index("studio_usage_logs_user_id_idx").on(table.userId)],
+  (table) => [
+    index("studio_usage_logs_user_id_idx").on(table.userId),
+    index("studio_usage_logs_user_created_idx").on(table.userId, table.createdAt.desc()),
+  ],
 );
 
 export const studioUsageLogsRelations = relations(studioUsageLogs, ({ one }) => ({
