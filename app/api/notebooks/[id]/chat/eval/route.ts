@@ -3,10 +3,22 @@ import { db } from "@/lib/db";
 import { sources, sourceChunks, notebooks } from "@/lib/db/schema";
 import { getAuthFromHeader } from "@/lib/auth";
 import { and, eq, sql } from "drizzle-orm";
-import { generateEmbedding } from "@/lib/ai/embedding";
+import { generateEmbeddings } from "@/lib/ai/embedding";
 import { generateSystemPrompt, formatContext } from "@/lib/ai/prompt";
+import { rewriteContextualQuery } from "@/lib/ai/query-rewriter";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
+
+interface RetrievedChunk {
+  id: string;
+  content: string;
+  chunkIndex: number;
+  metadata: Record<string, unknown> | null;
+  sourceId: string;
+  sourceName: string;
+  sourceType?: string;
+  distance: number;
+}
 
 /**
  * POST /api/notebooks/[id]/chat/eval
@@ -38,10 +50,16 @@ export async function POST(
 
     const { id: notebookId } = await params;
 
-    // ─── Verify notebook belongs to user ────────────────────────────────────
-    const notebook = await db.query.notebooks.findFirst({
-      where: and(eq(notebooks.id, notebookId), eq(notebooks.userId, authPayload.userId)),
-    });
+    // ─── Verify notebook belongs to user & fetch ready sources ───────────────
+    const [notebook, notebookSources] = await Promise.all([
+      db.query.notebooks.findFirst({
+        where: and(eq(notebooks.id, notebookId), eq(notebooks.userId, authPayload.userId)),
+      }),
+      db.query.sources.findMany({
+        where: and(eq(sources.notebookId, notebookId), eq(sources.status, "READY")),
+        columns: { name: true, type: true },
+      }),
+    ]);
 
     if (!notebook) {
       return Response.json({ error: "Notebook not found" }, { status: 404 });
@@ -53,44 +71,66 @@ export async function POST(
     const latestMessage = chatMessages[chatMessages.length - 1];
     const userQuery = latestMessage.content;
 
-    // ─── Step 1: Generate query embedding ───────────────────────────────────
-    const queryEmbedding = await generateEmbedding(userQuery);
+    // ─── Step 1: Query Rewriting & Expansion ────────────────────────────────
+    const priorHistory = chatMessages.slice(0, -1);
+    const queryPlan = await rewriteContextualQuery({
+      userQuery,
+      chatHistory: priorHistory,
+      sourceNames: notebookSources.map((s) => s.name),
+    });
 
-    // ─── Step 2: Vector similarity search (identical to /chat endpoint) ─────
-    // Retrieve the top 8 most semantically similar chunks from this notebook.
-    const vectorQuery = sql`
-      SELECT 
-        ${sourceChunks.id}, 
-        ${sourceChunks.content}, 
-        ${sourceChunks.chunkIndex},
-        ${sourceChunks.metadata},
-        ${sources.id} as "sourceId",
-        ${sources.name} as "sourceName",
-        ${sources.type} as "sourceType",
-        (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) as distance
-      FROM ${sourceChunks}
-      INNER JOIN ${sources} ON ${sourceChunks.sourceId} = ${sources.id}
-      WHERE ${sources.notebookId} = ${notebookId}
-        AND (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) < 0.85
-      ORDER BY distance ASC
-      LIMIT 8
-    `;
+    // ─── Step 2: Generate embeddings for search queries ─────────────────────
+    const searchVectors = await generateEmbeddings(queryPlan.searchQueries);
 
-    const similarChunksRaw = await db.execute(vectorQuery);
-    const similarChunks = similarChunksRaw.rows.map((row: any) => ({
-      id: row.id as string,
-      content: row.content as string,
-      chunkIndex: row.chunk_index as number,
-      // metadata contains { pageNumber } for PDF sources
-      metadata: row.metadata as Record<string, any> | null,
-      sourceId: row.sourceId as string,
-      sourceName: row.sourceName as string,
-      sourceType: (row.sourceType as string)?.toLowerCase(),
-      distance: row.distance as number,
-    }));
+    // ─── Step 3: Vector similarity search (identical to /chat endpoint) ─────
+    const chunkMap = new Map<string, RetrievedChunk>();
+
+    await Promise.all(
+      searchVectors.map(async (queryEmbedding) => {
+        const vectorQuery = sql`
+          SELECT 
+            ${sourceChunks.id}, 
+            ${sourceChunks.content}, 
+            ${sourceChunks.chunkIndex},
+            ${sourceChunks.metadata},
+            ${sources.id} as "sourceId",
+            ${sources.name} as "sourceName",
+            ${sources.type} as "sourceType",
+            (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) as distance
+          FROM ${sourceChunks}
+          INNER JOIN ${sources} ON ${sourceChunks.sourceId} = ${sources.id}
+          WHERE ${sources.notebookId} = ${notebookId}
+            AND (${sourceChunks.embedding} <=> ${JSON.stringify(queryEmbedding)}) < 0.85
+          ORDER BY distance ASC
+          LIMIT 8
+        `;
+
+        const rawResults = await db.execute(vectorQuery);
+        for (const row of rawResults.rows as Record<string, unknown>[]) {
+          const id = row.id as string;
+          const distance = Number(row.distance);
+          if (!chunkMap.has(id) || distance < (chunkMap.get(id)?.distance ?? Infinity)) {
+            chunkMap.set(id, {
+              id,
+              content: row.content as string,
+              chunkIndex: row.chunk_index as number,
+              metadata: row.metadata as Record<string, unknown> | null,
+              sourceId: row.sourceId as string,
+              sourceName: row.sourceName as string,
+              sourceType: (row.sourceType as string)?.toLowerCase(),
+              distance,
+            });
+          }
+        }
+      })
+    );
+
+    const similarChunks: RetrievedChunk[] = Array.from(chunkMap.values())
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 8);
 
     // ─── Step 3: Format context and build system prompt ─────────────────────
-    const contextString = formatContext(similarChunks.map((c: any, i: number) => ({
+    const contextString = formatContext(similarChunks.map((c, i) => ({
       content: c.content,
       sourceName: c.sourceName,
       index: i,
@@ -109,14 +149,14 @@ export async function POST(
     // ─── Step 5: Build structured context list for RAGAS ────────────────────
     // Each context object contains the chunk content and enough metadata
     // for RAGAS to compute context precision, recall, and faithfulness.
-    const contexts = similarChunks.map((chunk: any) => ({
+    const contexts = similarChunks.map((chunk) => ({
       content: chunk.content,
       chunkIndex: chunk.chunkIndex,
       sourceId: chunk.sourceId,
       sourceName: chunk.sourceName,
       sourceType: chunk.sourceType,
       // pageNumber is populated for PDF sources; null for others
-      pageNumber: (chunk.metadata?.pageNumber as number) ?? null,
+      pageNumber: ((chunk.metadata as Record<string, unknown> | null)?.pageNumber as number) ?? null,
       // similarity distance (lower = more relevant; 0 is perfect match)
       distance: chunk.distance,
     }));
